@@ -1,0 +1,227 @@
+To train the HierarchicalRoberta model using the provided code and data, here’s a step-by-step guide to the training algorithm:
+
+Step 1: Load Necessary Libraries
+
+import pandas as pd
+import torch
+from torch.utils.data import DataLoader, Dataset
+from transformers import RobertaTokenizer, RobertaConfig
+from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
+
+Step 2: Load Data
+
+	•	Load the Control Structure:
+
+control_data = pd.read_pickle('control.pkl')
+
+
+	•	Load Annotated Sentences:
+
+annotated_data = pd.read_pickle('annotated_data.pkl')
+
+
+
+Step 3: Verify and Encode Labels
+
+	•	Extract and Encode the Labels:
+
+# Extract unique values for encoding
+valid_domains = control_data['domain'].unique()
+valid_standards = control_data['standard'].unique()
+valid_objectives = control_data['objective'].unique()
+valid_procedures = control_data['procedure'].unique()
+
+# Initialize Label Encoders
+domain_encoder = LabelEncoder().fit(valid_domains)
+standard_encoder = LabelEncoder().fit(valid_standards)
+objective_encoder = LabelEncoder().fit(valid_objectives)
+procedure_encoder = LabelEncoder().fit(valid_procedures)
+
+# Encode the annotated data
+annotated_data['domain'] = domain_encoder.transform(annotated_data['domain'])
+annotated_data['standard'] = standard_encoder.transform(annotated_data['standard'])
+annotated_data['objective'] = objective_encoder.transform(annotated_data['objective'])
+annotated_data['procedure'] = procedure_encoder.transform(annotated_data['procedure'])
+
+
+
+Step 4: Prepare the Dataset
+
+	•	Create a Custom Dataset Class:
+
+class CustomDataset(Dataset):
+    def __init__(self, sentences, labels, tokenizer, max_len):
+        self.sentences = sentences
+        self.labels = labels
+        self.tokenizer = tokenizer
+        self.max_len = max_len
+
+    def __len__(self):
+        return len(self.sentences)
+
+    def __getitem__(self, index):
+        sentence = self.sentences[index]
+        label = self.labels[index]
+
+        encoding = self.tokenizer.encode_plus(
+            sentence,
+            add_special_tokens=True,
+            max_length=self.max_len,
+            return_token_type_ids=False,
+            padding='max_length',
+            return_attention_mask=True,
+            return_tensors='pt',
+            truncation=True
+        )
+
+        return {
+            'input_ids': encoding['input_ids'].flatten(),
+            'attention_mask': encoding['attention_mask'].flatten(),
+            'labels': torch.tensor(label, dtype=torch.long)
+        }
+
+
+	•	Initialize the Tokenizer:
+
+tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+
+
+	•	Prepare Data for Training and Validation:
+
+# Combine labels into a single array
+labels = annotated_data[['domain', 'standard', 'objective', 'procedure']].values
+
+# Split into training and validation sets
+train_sentences, val_sentences, train_labels, val_labels = train_test_split(
+    annotated_data['sentence'].values,
+    labels,
+    test_size=0.2,
+    random_state=42
+)
+
+# Create Dataset objects
+train_dataset = CustomDataset(
+    sentences=train_sentences,
+    labels=train_labels,
+    tokenizer=tokenizer,
+    max_len=128
+)
+
+val_dataset = CustomDataset(
+    sentences=val_sentences,
+    labels=val_labels,
+    tokenizer=tokenizer,
+    max_len=128
+)
+
+# DataLoader
+train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False)
+
+
+
+Step 5: Initialize the Model
+
+	•	Load Model Configuration:
+
+config = RobertaConfig.from_pretrained('roberta-base')
+
+
+	•	Initialize the Hierarchical Model:
+
+model = HierarchicalRoberta(config)
+
+
+
+Step 6: Set Up the Training Loop
+
+	•	Define Optimizer and Loss:
+
+optimizer = torch.optim.AdamW(model.parameters(), lr=2e-5)
+
+
+	•	Training Loop:
+
+def train_epoch(model, data_loader, optimizer, device):
+    model = model.train()
+    total_loss = 0
+
+    for batch in data_loader:
+        input_ids = batch['input_ids'].to(device)
+        attention_mask = batch['attention_mask'].to(device)
+        labels = batch['labels'].to(device)
+
+        optimizer.zero_grad()
+
+        loss, _, _, _, _ = model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            labels=labels
+        )
+
+        loss.backward()
+        optimizer.step()
+
+        total_loss += loss.item()
+
+    return total_loss / len(data_loader)
+
+def eval_model(model, data_loader, device):
+    model = model.eval()
+    total_loss = 0
+
+    with torch.no_grad():
+        for batch in data_loader:
+            input_ids = batch['input_ids'].to(device)
+            attention_mask = batch['attention_mask'].to(device)
+            labels = batch['labels'].to(device)
+
+            loss, _, _, _, _ = model(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                labels=labels
+            )
+
+            total_loss += loss.item()
+
+    return total_loss / len(data_loader)
+
+
+
+Step 7: Train the Model
+
+	•	Train the Model Over Several Epochs:
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = model.to(device)
+
+epochs = 3
+for epoch in range(epochs):
+    print(f'Epoch {epoch + 1}/{epochs}')
+    train_loss = train_epoch(model, train_loader, optimizer, device)
+    val_loss = eval_model(model, val_loader, device)
+
+    print(f'Training Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}')
+
+
+
+Step 8: Save the Trained Model
+
+	•	Save the Model and Tokenizer:
+
+model.save_pretrained('./hierarchical_roberta')
+tokenizer.save_pretrained('./hierarchical_roberta')
+
+
+
+Summary of the Steps:
+
+	1.	Load Data: Load the control structure from control.pkl and the annotated sentences from annotated_data.pkl.
+	2.	Verify & Encode Labels: Use LabelEncoder to encode labels for domain, standard, objective, and procedure based on the control structure.
+	3.	Prepare Dataset: Create a custom PyTorch Dataset to handle tokenization and data formatting.
+	4.	Initialize Model: Set up the RoBERTa model for hierarchical classification.
+	5.	Train Model: Run the training loop with a defined optimizer and loss function.
+	6.	Save Model: After training, save the model and tokenizer for later use.
+
+This step-by-step process allows you to train a hierarchical classification model using RoBERTa, tailored for the task of mapping sentences to their respective control structures.

@@ -301,7 +301,52 @@ prediction = predict(model, tokenizer, sentence)
 print(prediction)
 
 
+Sentence: "Encrypt all backup files using AES-256 before transferring to cloud storage."
 
+Expected Domain: Encryption
+Expected Standard: Data at Rest Encryption
+Expected Objective: Secure Backup Encryption
+Expected Procedure: AES-256 Encryption Procedure
+Explanation: The sentence explicitly mentions "AES-256," which is a strong indicator that the correct procedure should involve the AES-256 encryption method. The context of encrypting backups for secure transfer is aligned with common encryption procedures, making it likely the model will predict this correctly.
+
+Sentence: "Ensure multi-factor authentication is enforced for all user logins."
+
+Expected Domain: Authentication
+Expected Standard: User Access Control
+Expected Objective: Multi-Factor Authentication
+Expected Procedure: Token-Based MFA Implementation
+Explanation: The sentence mentions "multi-factor authentication," a specific technique used to enhance security. The model, having been trained on similar sentences, should predict the procedure related to implementing MFA, such as "Token-Based MFA Implementation."
+
+Sentence: "All passwords should be hashed using the SHA-256 algorithm before storage."
+
+Expected Domain: Encryption
+Expected Standard: Password Protection
+Expected Objective: Password Hashing
+Expected Procedure: SHA-256 Hashing Procedure
+Explanation: "SHA-256 algorithm" directly references a specific procedure for hashing passwords, making it highly likely that the model will predict the correct procedure, "SHA-256 Hashing Procedure."
+
+Sentence: "Implement firewall rules to block unauthorized access to the database."
+
+Expected Domain: Network Security
+Expected Standard: Access Control
+Expected Objective: Database Security
+Expected Procedure: Firewall Configuration Procedure
+Explanation: The mention of "firewall rules" suggests a specific network security procedure. The model should predict a procedure related to configuring firewall rules, such as "Firewall Configuration Procedure."
+
+Sentence: "Perform regular audits to ensure compliance with data protection regulations."
+
+Expected Domain: Compliance
+Expected Standard: Data Protection Compliance
+Expected Objective: Regular Audits
+Expected Procedure: Audit Procedure Implementation
+Explanation: The sentence refers to "regular audits," which are a procedural aspect of compliance. The model should identify the related procedure as "Audit Procedure Implementation."
+
+Why These Predictions are Likely Correct
+Clear Keywords: Each sentence contains specific keywords or phrases that are closely tied to a known procedure, such as "AES-256," "multi-factor authentication," or "firewall rules." These keywords are likely to have been encountered during training, making the model's prediction more accurate.
+
+Contextual Information: The context provided by the sentence helps the model infer the correct procedure. For instance, the context of "user logins" in conjunction with "multi-factor authentication" strongly suggests an MFA-related procedure.
+
+Hierarchical Dependencies: The model predicts procedures after first predicting domains, standards, and objectives. This sequential prediction allows it to refine its final prediction based on the hierarchical context provided by the earlier predictions.
 
 Summary of the Steps:
 

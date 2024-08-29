@@ -263,6 +263,46 @@ class HierarchicalRoberta(RobertaPreTrainedModel):
 
         return domain_logits, standard_logits, objective_logits, procedure_logits
 
+
+
+
+def predict(model, tokenizer, sentence):
+    model.eval()
+    
+    inputs = tokenizer(sentence, return_tensors='pt', truncation=True, padding=True)
+    input_ids = inputs['input_ids'].to(device)
+    attention_mask = inputs['attention_mask'].to(device)
+
+    with torch.no_grad():
+        domain_logits, standard_logits, objective_logits, procedure_logits = model(input_ids, attention_mask)
+
+    # Convert logits to predicted labels
+    domain_pred = torch.argmax(domain_logits, dim=1).item()
+    standard_pred = torch.argmax(standard_logits, dim=1).item()
+    objective_pred = torch.argmax(objective_logits, dim=1).item()
+    procedure_pred = torch.argmax(procedure_logits, dim=1).item()
+
+    # Decode labels
+    domain_label = domain_encoder.inverse_transform([domain_pred])[0]
+    standard_label = standard_encoder.inverse_transform([standard_pred])[0]
+    objective_label = objective_encoder.inverse_transform([objective_pred])[0]
+    procedure_label = procedure_encoder.inverse_transform([procedure_pred])[0]
+
+    return {
+        'domain': domain_label,
+        'standard': standard_label,
+        'objective': objective_label,
+        'procedure': procedure_label
+    }
+
+# Example usage
+sentence = "Ensure that all data at rest is encrypted using AES-256."
+prediction = predict(model, tokenizer, sentence)
+print(prediction)
+
+
+
+
 Summary of the Steps:
 
 	1.	Load Data: Load the control structure from control.pkl and the annotated sentences from annotated_data.pkl.

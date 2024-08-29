@@ -223,6 +223,46 @@ tokenizer.save_pretrained('./hierarchical_roberta')
 
 
 
+from transformers import RobertaModel, RobertaConfig, RobertaPreTrainedModel
+import torch.nn as nn
+import torch
+
+class HierarchicalRoberta(RobertaPreTrainedModel):
+    def __init__(self, config):
+        super(HierarchicalRoberta, self).__init__(config)
+        self.roberta = RobertaModel(config)
+
+        # Define classifiers for each hierarchical level
+        self.domain_classifier = nn.Linear(config.hidden_size, len(domain_encoder.classes_))
+        self.standard_classifier = nn.Linear(config.hidden_size, len(standard_encoder.classes_))
+        self.objective_classifier = nn.Linear(config.hidden_size, len(objective_encoder.classes_))
+        self.procedure_classifier = nn.Linear(config.hidden_size, len(procedure_encoder.classes_))
+
+        self.init_weights()
+
+    def forward(self, input_ids, attention_mask, labels=None):
+        # Get the RoBERTa output
+        outputs = self.roberta(input_ids, attention_mask=attention_mask)
+        sequence_output = outputs[0][:, 0, :]  # Use the [CLS] token's output
+
+        # Predict each level sequentially
+        domain_logits = self.domain_classifier(sequence_output)
+        standard_logits = self.standard_classifier(sequence_output)
+        objective_logits = self.objective_classifier(sequence_output)
+        procedure_logits = self.procedure_classifier(sequence_output)
+
+        if labels is not None:
+            loss_fct = nn.CrossEntropyLoss()
+            domain_loss = loss_fct(domain_logits, labels[:, 0])
+            standard_loss = loss_fct(standard_logits, labels[:, 1])
+            objective_loss = loss_fct(objective_logits, labels[:, 2])
+            procedure_loss = loss_fct(procedure_logits, labels[:, 3])
+
+            total_loss = domain_loss + standard_loss + objective_loss + procedure_loss
+            return total_loss, domain_logits, standard_logits, objective_logits, procedure_logits
+
+        return domain_logits, standard_logits, objective_logits, procedure_logits
+
 Summary of the Steps:
 
 	1.	Load Data: Load the control structure from control.pkl and the annotated sentences from annotated_data.pkl.

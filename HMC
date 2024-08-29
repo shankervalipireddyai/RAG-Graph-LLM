@@ -26,6 +26,14 @@ Step 3: Verify and Encode Labels
 
 	•	Extract and Encode the Labels:
 
+# Fill NaN or empty strings with a placeholder like 'Unknown'
+control_data['domain'].fillna('Unknown', inplace=True)
+control_data['domain'].replace('', 'Unknown', inplace=True)
+
+annotated_data['domain'].fillna('Unknown', inplace=True)
+annotated_data['domain'].replace('', 'Unknown', inplace=True)
+
+
 # Extract unique values for encoding
 valid_domains = control_data['domain'].unique()
 valid_standards = control_data['standard'].unique()

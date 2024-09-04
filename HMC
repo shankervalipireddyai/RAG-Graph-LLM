@@ -484,3 +484,20 @@ Confusion Matrix: A table used to describe the performance of a classification m
 By analyzing these metrics, you can assess the model's performance and identify areas where it might need improvement.
 
 
+
+
+# Count unique mappings for procedures, objectives, standards, and domains
+grouped_df = merged_df.groupby('sentence').agg({
+    'procedure': pd.Series.nunique,  # Count unique procedures
+    'objective': pd.Series.nunique,  # Count unique objectives
+    'standard': pd.Series.nunique,   # Count unique standards
+    'domain': pd.Series.nunique      # Count unique domains
+}).reset_index()
+
+# Rename columns for clarity
+grouped_df.rename(columns={
+    'procedure': 'procedure_count',
+    'objective': 'objective_count',
+    'standard': 'standard_count',
+    'domain': 'domain_count'
+}, inplace=True)

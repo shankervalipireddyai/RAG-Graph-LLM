@@ -520,3 +520,383 @@ print("Distinct Procedures:\n", distinct_procedures)
 print("\nDistinct Objectives:\n", distinct_objectives)
 print("\nDistinct Standards:\n", distinct_standards)
 print("\nDistinct Domains:\n", distinct_domains)
+
+
+
+
+
+
+To create a hierarchical multi-class model using RoBERTa that can handle sentences mapped to multiple procedures, objectives, standards, and domains, we’ll first prepare the data and then define and fine-tune a model. This process involves the following steps:
+
+1. Data Preparation
+
+Data Overview:
+
+	•	Control Data: Contains domains, standards, objectives, and procedures.
+	•	Sentence Data: Contains sentences that need to be mapped to the control structure.
+
+Data Cleaning and Merging:
+
+The key is to merge these datasets correctly, ensure there are no NaN values, and then structure the data so that it’s ready for model training.
+
+import pandas as pd
+import numpy as np
+
+# Assume control_df and sentences_df are your dataframes loaded from ctrl.pkl and sentences.pkl respectively
+
+# Merge the dataframes on a common key if available
+merged_df = pd.merge(sentences_df, control_df, how='inner', on='common_key')  # replace 'common_key' with your actual key
+
+# Drop NaNs across necessary columns
+filtered_df = merged_df.dropna(subset=['domain', 'standard', 'objective', 'procedure'])
+
+# Handle cases where sentences map to multiple procedures, objectives, etc.
+filtered_df['procedures'] = filtered_df['procedures'].apply(lambda x: x.split(',') if isinstance(x, str) else x)
+filtered_df['objectives'] = filtered_df['objectives'].apply(lambda x: x.split(',') if isinstance(x, str) else x)
+filtered_df['standards'] = filtered_df['standards'].apply(lambda x: x.split(',') if isinstance(x, str) else x)
+filtered_df['domains'] = filtered_df['domains'].apply(lambda x: x.split(',') if isinstance(x, str) else x)
+
+# Remove NaN entries from lists
+filtered_df = filtered_df.applymap(lambda x: [i for i in x if i] if isinstance(x, list) else x)
+
+# Filter out empty lists to make sure there's no missing data
+filtered_df = filtered_df[filtered_df['procedures'].str.len() > 0]
+
+2. Model Definition
+
+Hierarchical Multi-Label Classification with RoBERTa
+
+We’ll define a custom model using the transformers library by extending RobertaPreTrainedModel. The model will predict at each level of the hierarchy (procedure, objective, standard, domain).
+
+import torch
+import torch.nn as nn
+from transformers import RobertaModel, RobertaPreTrainedModel, RobertaTokenizer
+
+class HierarchicalRobertaMultiLabel(RobertaPreTrainedModel):
+    def __init__(self, config):
+        super(HierarchicalRobertaMultiLabel, self).__init__(config)
+        self.roberta = RobertaModel(config)
+        
+        # Linear layers for each hierarchical level
+        self.procedure_classifier = nn.Linear(config.hidden_size, len(procedure_encoder.classes_))
+        self.objective_classifier = nn.Linear(config.hidden_size, len(objective_encoder.classes_))
+        self.standard_classifier = nn.Linear(config.hidden_size, len(standard_encoder.classes_))
+        self.domain_classifier = nn.Linear(config.hidden_size, len(domain_encoder.classes_))
+
+        self.init_weights()
+
+    def forward(self, input_ids, attention_mask=None, labels=None):
+        outputs = self.roberta(input_ids, attention_mask=attention_mask)
+        sequence_output = outputs[0][:, 0, :]  # Using CLS token's representation
+
+        procedure_logits = self.procedure_classifier(sequence_output)
+        objective_logits = self.objective_classifier(sequence_output)
+        standard_logits = self.standard_classifier(sequence_output)
+        domain_logits = self.domain_classifier(sequence_output)
+
+        return procedure_logits, objective_logits, standard_logits, domain_logits
+
+3. Fine-Tuning
+
+Data Encoding
+
+Use MultiLabelBinarizer for the multi-label data:
+
+from sklearn.preprocessing import MultiLabelBinarizer
+
+procedure_encoder = MultiLabelBinarizer().fit(filtered_df['procedures'])
+objective_encoder = MultiLabelBinarizer().fit(filtered_df['objectives'])
+standard_encoder = MultiLabelBinarizer().fit(filtered_df['standards'])
+domain_encoder = MultiLabelBinarizer().fit(filtered_df['domains'])
+
+# Encode the labels
+y_procedures = procedure_encoder.transform(filtered_df['procedures'])
+y_objectives = objective_encoder.transform(filtered_df['objectives'])
+y_standards = standard_encoder.transform(filtered_df['standards'])
+y_domains = domain_encoder.transform(filtered_df['domains'])
+
+Training Loop
+
+from transformers import RobertaTokenizer, AdamW
+from torch.utils.data import DataLoader, TensorDataset
+import torch
+
+# Load tokenizer
+tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+
+# Tokenize the sentences
+encodings = tokenizer(list(filtered_df['sentence']), truncation=True, padding=True, max_length=128)
+
+input_ids = torch.tensor(encodings['input_ids'])
+attention_mask = torch.tensor(encodings['attention_mask'])
+labels_procedures = torch.tensor(y_procedures, dtype=torch.float32)
+labels_objectives = torch.tensor(y_objectives, dtype=torch.float32)
+labels_standards = torch.tensor(y_standards, dtype=torch.float32)
+labels_domains = torch.tensor(y_domains, dtype=torch.float32)
+
+# Create a dataset and dataloader
+dataset = TensorDataset(input_ids, attention_mask, labels_procedures, labels_objectives, labels_standards, labels_domains)
+dataloader = DataLoader(dataset, batch_size=16, shuffle=True)
+
+# Model and optimizer
+model = HierarchicalRobertaMultiLabel.from_pretrained('roberta-base')
+optimizer = AdamW(model.parameters(), lr=2e-5)
+
+# Training loop
+for epoch in range(3):
+    model.train()
+    total_loss = 0
+
+    for batch in dataloader:
+        b_input_ids, b_attention_mask, b_labels_procedures, b_labels_objectives, b_labels_standards, b_labels_domains = batch
+
+        model.zero_grad()
+
+        #
+
+
+
+        # Forward pass
+        procedure_logits, objective_logits, standard_logits, domain_logits = model(
+            input_ids=b_input_ids,
+            attention_mask=b_attention_mask
+        )
+
+        # Loss calculation for multi-label classification
+        loss_fn = nn.BCEWithLogitsLoss()
+
+        procedure_loss = loss_fn(procedure_logits, b_labels_procedures)
+        objective_loss = loss_fn(objective_logits, b_labels_objectives)
+        standard_loss = loss_fn(standard_logits, b_labels_standards)
+        domain_loss = loss_fn(domain_logits, b_labels_domains)
+
+        # Total loss
+        loss = procedure_loss + objective_loss + standard_loss + domain_loss
+        total_loss += loss.item()
+
+        # Backward pass and optimization
+        loss.backward()
+        optimizer.step()
+
+    avg_train_loss = total_loss / len(dataloader)
+    print(f"Epoch {epoch + 1}, Loss: {avg_train_loss}")
+
+
+
+
+
+
+
+def predict(model, sentence):
+    model.eval()
+    inputs = tokenizer(sentence, return_tensors='pt', truncation=True, padding=True, max_length=128)
+    input_ids = inputs['input_ids']
+    attention_mask = inputs['attention_mask']
+
+    with torch.no_grad():
+        procedure_logits, objective_logits, standard_logits, domain_logits = model(input_ids, attention_mask)
+
+    # Convert logits to probabilities
+    procedure_probs = torch.sigmoid(procedure_logits).squeeze().tolist()
+    objective_probs = torch.sigmoid(objective_logits).squeeze().tolist()
+    standard_probs = torch.sigmoid(standard_logits).squeeze().tolist()
+    domain_probs = torch.sigmoid(domain_logits).squeeze().tolist()
+
+    # Get the most probable labels (threshold can be adjusted)
+    procedure_preds = [procedure_encoder.classes_[i] for i, p in enumerate(procedure_probs) if p > 0.5]
+    objective_preds = [objective_encoder.classes_[i] for i, p in enumerate(objective_probs) if p > 0.5]
+    standard_preds = [standard_encoder.classes_[i] for i, p in enumerate(standard_probs) if p > 0.5]
+    domain_preds = [domain_encoder.classes_[i] for i, p in enumerate(domain_probs) if p > 0.5]
+
+    return {
+        "procedures": procedure_preds,
+        "objectives": objective_preds,
+        "standards": standard_preds,
+        "domains": domain_preds
+    }
+
+# Example usage
+sentence = "Implementing AES-256 encryption for securing data at rest."
+predictions = predict(model, sentence)
+print(predictions)
+
+
+
+
+
+
+
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, multilabel_confusion_matrix
+
+def evaluate_model(model, dataloader):
+    model.eval()
+    all_preds_procedures = []
+    all_preds_objectives = []
+    all_preds_standards = []
+    all_preds_domains = []
+    
+    all_labels_procedures = []
+    all_labels_objectives = []
+    all_labels_standards = []
+    all_labels_domains = []
+    
+    with torch.no_grad():
+        for batch in dataloader:
+            b_input_ids, b_attention_mask, b_labels_procedures, b_labels_objectives, b_labels_standards, b_labels_domains = batch
+
+            procedure_logits, objective_logits, standard_logits, domain_logits = model(
+                input_ids=b_input_ids,
+                attention_mask=b_attention_mask
+            )
+
+            # Get predicted labels
+            procedure_preds = (torch.sigmoid(procedure_logits) > 0.5).float()
+            objective_preds = (torch.sigmoid(objective_logits) > 0.5).float()
+            standard_preds = (torch.sigmoid(standard_logits) > 0.5).float()
+            domain_preds = (torch.sigmoid(domain_logits) > 0.5).float()
+
+            all_preds_procedures.append(procedure_preds.cpu().numpy())
+            all_preds_objectives.append(objective_preds.cpu().numpy())
+            all_preds_standards.append(standard_preds.cpu().numpy())
+            all_preds_domains.append(domain_preds.cpu().numpy())
+            
+            all_labels_procedures.append(b_labels_procedures.cpu().numpy())
+            all_labels_objectives.append(b_labels_objectives.cpu().numpy())
+            all_labels_standards.append(b_labels_standards.cpu().numpy())
+            all_labels_domains.append(b_labels_domains.cpu().numpy())
+
+    # Flatten the arrays
+    y_true_procedures = np.concatenate(all_labels_procedures, axis=0)
+    y_pred_procedures = np.concatenate(all_preds_procedures, axis=0)
+
+    y_true_objectives = np.concatenate(all_labels_objectives, axis=0)
+    y_pred_objectives = np.concatenate(all_preds_objectives, axis=0)
+
+    y_true_standards = np.concatenate(all_labels_standards, axis=0)
+    y_pred_standards = np.concatenate(all_preds_standards, axis=0)
+
+    y_true_domains = np.concatenate(all_labels_domains, axis=0)
+    y_pred_domains = np.concatenate(all_preds_domains, axis=0)
+
+    # Metrics calculation
+    metrics = {}
+    for label, y_true, y_pred in [("procedures", y_true_procedures, y_pred_procedures),
+                                  ("objectives", y_true_objectives, y_pred_objectives),
+                                  ("standards", y_true_standards, y_pred_standards),
+                                  ("domains", y_true_domains, y_pred_domains)]:
+        
+        accuracy = accuracy_score(y_true, y_pred)
+        precision = precision_score(y_true, y_pred, average='weighted')
+        recall = recall_score(y_true, y_pred, average='weighted')
+        f1 = f1_score(y_true, y_pred, average='weighted')
+        conf_matrix = multilabel_confusion_matrix(y_true, y_pred)
+
+        metrics[label] = {
+            "accuracy": accuracy,
+            "precision": precision,
+            "recall": recall,
+            "f1_score": f1,
+            "confusion_matrix": conf_matrix
+        }
+
+    return metrics
+
+# Evaluate the model on the validation set
+metrics = evaluate_model(model, dataloader)
+print(metrics)
+
+
+
+Here are some example sentences that might be used with the predict function to generate hierarchical predictions:
+
+1. Data Encryption
+
+sentence = "Implementing AES-256 encryption for securing data at rest."
+predictions = predict(model, sentence)
+print(predictions)
+
+Possible Output:
+
+{
+    "procedures": ["Encryption Procedure"],
+    "objectives": ["Data Protection Objective"],
+    "standards": ["Encryption Standard"],
+    "domains": ["Security Domain"]
+}
+
+2. Access Control
+
+sentence = "Configuring multi-factor authentication for all remote access."
+predictions = predict(model, sentence)
+print(predictions)
+
+Possible Output:
+
+{
+    "procedures": ["Authentication Procedure", "Access Control Procedure"],
+    "objectives": ["Access Management Objective"],
+    "standards": ["Authentication Standard", "Access Control Standard"],
+    "domains": ["Security Domain"]
+}
+
+3. Data Backup
+
+sentence = "Performing regular backups and storing them in a secure offsite location."
+predictions = predict(model, sentence)
+print(predictions)
+
+Possible Output:
+
+{
+    "procedures": ["Backup Procedure", "Data Recovery Procedure"],
+    "objectives": ["Data Availability Objective"],
+    "standards": ["Backup Standard", "Disaster Recovery Standard"],
+    "domains": ["Operational Continuity Domain"]
+}
+
+4. Incident Response
+
+sentence = "Establishing an incident response plan to address security breaches."
+predictions = predict(model, sentence)
+print(predictions)
+
+Possible Output:
+
+{
+    "procedures": ["Incident Response Procedure"],
+    "objectives": ["Incident Management Objective"],
+    "standards": ["Incident Response Standard"],
+    "domains": ["Security Domain"]
+}
+
+5. Network Security
+
+sentence = "Implementing a firewall to protect the internal network from unauthorized access."
+predictions = predict(model, sentence)
+print(predictions)
+
+Possible Output:
+
+{
+    "procedures": ["Firewall Configuration Procedure"],
+    "objectives": ["Network Security Objective"],
+    "standards": ["Network Security Standard"],
+    "domains": ["Security Domain"]
+}
+
+6. User Training
+
+sentence = "Conducting regular security awareness training for all employees."
+predictions = predict(model, sentence)
+print(predictions)
+
+Possible Output:
+
+{
+    "procedures": ["Training and Awareness Procedure"],
+    "objectives": ["Human Resource Security Objective"],
+    "standards": ["Security Training Standard"],
+    "domains": ["Human Resources Domain"]
+}
+
+These examples demonstrate how the model might map sentences to different procedures, objectives, standards, and domains based on the context of the sentence. The actual output will depend on the training data and the model’s performance after fine-tuning.

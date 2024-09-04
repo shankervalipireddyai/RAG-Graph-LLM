@@ -501,3 +501,22 @@ grouped_df.rename(columns={
     'standard': 'standard_count',
     'domain': 'domain_count'
 }, inplace=True)
+
+
+# Extract distinct procedures
+distinct_procedures = filtered_df['procedures'].explode().drop_duplicates().reset_index(drop=True)
+
+# Extract distinct objectives
+distinct_objectives = filtered_df['objectives'].explode().drop_duplicates().reset_index(drop=True)
+
+# Extract distinct standards
+distinct_standards = filtered_df['standards'].explode().drop_duplicates().reset_index(drop=True)
+
+# Extract distinct domains
+distinct_domains = filtered_df['domains'].explode().drop_duplicates().reset_index(drop=True)
+
+# Display the distinct values
+print("Distinct Procedures:\n", distinct_procedures)
+print("\nDistinct Objectives:\n", distinct_objectives)
+print("\nDistinct Standards:\n", distinct_standards)
+print("\nDistinct Domains:\n", distinct_domains)

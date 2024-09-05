@@ -1,3 +1,42 @@
+import boto3
+
+# Variables for the role and S3 bucket
+role_arn = "arn:aws:iam::123456789012:role/YourRoleName"  # Replace with your Role ARN
+bucket_name = "your-bucket-name"
+
+# Create an STS client
+sts_client = boto3.client('sts')
+
+# Assume the role
+assumed_role = sts_client.assume_role(
+    RoleArn=role_arn,
+    RoleSessionName="S3AccessSession"
+)
+
+# Extract the temporary credentials from the response
+credentials = assumed_role['Credentials']
+access_key = credentials['AccessKeyId']
+secret_key = credentials['SecretAccessKey']
+session_token = credentials['SessionToken']
+
+# Create a new S3 client using the temporary credentials
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id=access_key,
+    aws_secret_access_key=secret_key,
+    aws_session_token=session_token
+)
+
+# List the contents of the S3 bucket
+response = s3_client.list_objects_v2(Bucket=bucket_name)
+
+# Print the contents of the bucket
+if 'Contents' in response:
+    for obj in response['Contents']:
+        print(obj['Key'])
+else:
+    print("Bucket is empty or you don't have permission to list its contents.")
+
 To train the HierarchicalRoberta model using the provided code and data, here’s a step-by-step guide to the training algorithm:
 
 Step 1: Load Necessary Libraries

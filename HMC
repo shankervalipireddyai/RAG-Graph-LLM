@@ -900,3 +900,252 @@ Possible Output:
 }
 
 These examples demonstrate how the model might map sentences to different procedures, objectives, standards, and domains based on the context of the sentence. The actual output will depend on the training data and the model’s performance after fine-tuning.
+
+
+
+
+
+
+
+
+
+
+
+
+Step 1: Data Preprocessing
+We need to convert the labels into a binary format for multi-label classification and tokenize the sentences using the Roberta tokenizer.
+
+Code:
+python
+Copy code
+import pandas as pd
+import torch
+from torch.utils.data import Dataset, DataLoader
+from sklearn.preprocessing import MultiLabelBinarizer
+from transformers import RobertaTokenizer, RobertaModel, RobertaPreTrainedModel, AdamW
+import torch.nn as nn
+
+# Load tokenizer
+tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+
+# Assuming `filtered_df` is the DataFrame with the structure you provided.
+# The DataFrame has columns: 'sentence', 'procedure', 'objective', 'standard', 'domain'
+
+# Convert the text column to tokens and apply padding/truncation
+def tokenize_sentence(sentence):
+    return tokenizer(sentence, padding='max_length', truncation=True, max_length=256, return_tensors="pt")['input_ids'].squeeze()
+
+# Tokenizing the sentences
+filtered_df['tokenized'] = filtered_df['extended_text'].apply(lambda x: tokenize_sentence(x))
+
+# Use MultiLabelBinarizer to encode multi-label outputs
+mlb_procedure = MultiLabelBinarizer()
+mlb_objective = MultiLabelBinarizer()
+mlb_standard = MultiLabelBinarizer()
+mlb_domain = MultiLabelBinarizer()
+
+procedure_labels = mlb_procedure.fit_transform(filtered_df['procedure'])
+objective_labels = mlb_objective.fit_transform(filtered_df['objective'])
+standard_labels = mlb_standard.fit_transform(filtered_df['standard'])
+domain_labels = mlb_domain.fit_transform(filtered_df['domain'])
+
+# Dataset preparation
+class HierarchicalDataset(Dataset):
+    def __init__(self, sentences, procedures, objectives, standards, domains):
+        self.sentences = sentences
+        self.procedures = procedures
+        self.objectives = objectives
+        self.standards = standards
+        self.domains = domains
+
+    def __len__(self):
+        return len(self.sentences)
+
+    def __getitem__(self, idx):
+        return {
+            'input_ids': self.sentences[idx],
+            'procedures': torch.tensor(self.procedures[idx], dtype=torch.float),
+            'objectives': torch.tensor(self.objectives[idx], dtype=torch.float),
+            'standards': torch.tensor(self.standards[idx], dtype=torch.float),
+            'domains': torch.tensor(self.domains[idx], dtype=torch.float),
+        }
+
+# Prepare dataset and DataLoader
+dataset = HierarchicalDataset(
+    sentences=filtered_df['tokenized'].tolist(),
+    procedures=procedure_labels,
+    objectives=objective_labels,
+    standards=standard_labels,
+    domains=domain_labels
+)
+
+train_loader = DataLoader(dataset, batch_size=16, shuffle=True)
+Step 2: Model Definition
+We'll define a model based on Roberta for multi-label classification. Each output (procedures, objectives, standards, domains) will be predicted separately.
+
+Code:
+python
+Copy code
+class HierarchicalRoberta(RobertaPreTrainedModel):
+    def __init__(self, config, num_procedures, num_objectives, num_standards, num_domains):
+        super(HierarchicalRoberta, self).__init__(config)
+        self.roberta = RobertaModel(config)
+
+        # Define classifiers for each hierarchical level
+        self.procedure_classifier = nn.Linear(config.hidden_size, num_procedures)
+        self.objective_classifier = nn.Linear(config.hidden_size, num_objectives)
+        self.standard_classifier = nn.Linear(config.hidden_size, num_standards)
+        self.domain_classifier = nn.Linear(config.hidden_size, num_domains)
+
+        self.init_weights()
+
+    def forward(self, input_ids, attention_mask=None, labels=None):
+        # Get RoBERTa output
+        outputs = self.roberta(input_ids, attention_mask=attention_mask)
+        sequence_output = outputs[0][:, 0, :]  # Use [CLS] token output
+
+        # Predict each level sequentially
+        procedure_logits = self.procedure_classifier(sequence_output)
+        objective_logits = self.objective_classifier(sequence_output)
+        standard_logits = self.standard_classifier(sequence_output)
+        domain_logits = self.domain_classifier(sequence_output)
+
+        return procedure_logits, objective_logits, standard_logits, domain_logits
+Step 3: Training Loop
+Code:
+python
+Copy code
+# Model initialization
+num_procedures = len(mlb_procedure.classes_)
+num_objectives = len(mlb_objective.classes_)
+num_standards = len(mlb_standard.classes_)
+num_domains = len(mlb_domain.classes_)
+
+model = HierarchicalRoberta.from_pretrained('roberta-base', 
+                                            num_procedures=num_procedures, 
+                                            num_objectives=num_objectives, 
+                                            num_standards=num_standards, 
+                                            num_domains=num_domains)
+
+# Training setup
+optimizer = AdamW(model.parameters(), lr=5e-5)
+criterion = nn.BCEWithLogitsLoss()
+
+# Training loop
+def train_model(model, train_loader, optimizer, criterion, num_epochs=5):
+    model.train()
+    for epoch in range(num_epochs):
+        running_loss = 0.0
+        for batch in train_loader:
+            optimizer.zero_grad()
+
+            input_ids = batch['input_ids'].to(torch.int64)
+            procedures = batch['procedures']
+            objectives = batch['objectives']
+            standards = batch['standards']
+            domains = batch['domains']
+
+            procedure_logits, objective_logits, standard_logits, domain_logits = model(input_ids)
+
+            loss_procedures = criterion(procedure_logits, procedures)
+            loss_objectives = criterion(objective_logits, objectives)
+            loss_standards = criterion(standard_logits, standards)
+            loss_domains = criterion(domain_logits, domains)
+
+            loss = loss_procedures + loss_objectives + loss_standards + loss_domains
+            loss.backward()
+            optimizer.step()
+
+            running_loss += loss.item()
+
+        print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss/len(train_loader)}')
+
+# Train the model
+train_model(model, train_loader, optimizer, criterion, num_epochs=3)
+Step 4: Inference & Output Format
+To predict the labels for a new sentence and return the output in your desired format:
+
+Code:
+python
+Copy code
+def predict(model, sentence):
+    model.eval()
+    tokens = tokenize_sentence(sentence).unsqueeze(0)  # Add batch dimension
+    with torch.no_grad():
+        procedure_logits, objective_logits, standard_logits, domain_logits = model(tokens)
+
+    # Apply sigmoid to get probabilities
+    procedure_probs = torch.sigmoid(procedure_logits).squeeze().cpu().numpy()
+    objective_probs = torch.sigmoid(objective_logits).squeeze().cpu().numpy()
+    standard_probs = torch.sigmoid(standard_logits).squeeze().cpu().numpy()
+    domain_probs = torch.sigmoid(domain_logits).squeeze().cpu().numpy()
+
+    # Convert probabilities to binary predictions (threshold can be adjusted)
+    procedure_preds = procedure_probs > 0.5
+    objective_preds = objective_probs > 0.5
+    standard_preds = standard_probs > 0.5
+    domain_preds = domain_probs > 0.5
+
+    # Map binary predictions to class names
+    procedures = mlb_procedure.inverse_transform([procedure_preds])[0]
+    objectives = mlb_objective.inverse_transform([objective_preds])[0]
+    standards = mlb_standard.inverse_transform([standard_preds])[0]
+    domains = mlb_domain.inverse_transform([domain_preds])[0]
+
+    return {
+        "procedures": list(procedures),
+        "objectives": list(objectives),
+        "standards": list(standards),
+        "domains": list(domains)
+}
+
+# Example usage
+sentence = "Implementing AES-256 encryption for securing data at rest."
+predictions = predict(model, sentence)
+print(predictions)
+Step 5: Model Evaluation
+To evaluate the model's performance, you can calculate accuracy, precision, recall, and F1-score.
+
+Code:
+python
+Copy code
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
+def evaluate_model(model, data_loader):
+    model.eval()
+    all_procedure_preds, all_objective_preds, all_standard_preds, all_domain_preds = [], [], [], []
+    all_procedure_labels, all_objective_labels, all_standard_labels, all_domain_labels = [], [], [], []
+    
+    with torch.no_grad():
+        for batch in data_loader:
+            input_ids = batch['input_ids'].to(torch.int64)
+            procedures = batch['procedures']
+            objectives = batch['objectives']
+            standards = batch['standards']
+            domains = batch['domains']
+            
+            procedure_logits, objective_logits, standard_logits, domain_logits = model(input_ids)
+            
+            procedure_preds = (torch.sigmoid(procedure_logits) > 0.5).cpu().numpy()
+            objective_preds = (torch.sigmoid(objective_logits) > 0.5).cpu().numpy()
+            standard_preds = (torch.sigmoid(standard_logits) > 0.5).cpu().numpy()
+            domain_preds = (torch.sigmoid(domain_logits) > 0.5).cpu().numpy()
+            
+            all_procedure_preds.extend(procedure_preds)
+            all_objective_preds.extend(objective_preds)
+            all_standard_preds.extend(standard_preds)
+            all_domain_preds.extend(domain_preds)
+            
+            all_procedure_labels.extend(procedures.cpu().numpy())
+            all_objective_labels.extend(objectives.cpu().numpy())
+            all_standard_labels.extend(standards.cpu().numpy())
+            all_domain_labels.extend(domains.cpu().numpy())
+    
+    print(f"Procedure Accuracy: {accuracy_score(all_procedure_labels, all_procedure_preds)}")
+    print(f"Objective Accuracy: {accuracy_score(all_objective_labels, all_objective_preds)}")
+    print(f"Standard Accuracy: {accuracy_score(all_standard_labels, all_standard_preds)}")
+    print(f"Domain Accuracy: {accuracy_score(all_domain_labels, all_domain_preds)}")
+
+# Example usage
+evaluate_model(model, train_loader)
+This complete code provides a robust pipeline from preprocessing to model evaluation. You can adjust the number of epochs and learning rate depending on the size and complexity of your data.

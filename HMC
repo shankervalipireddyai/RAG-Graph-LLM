@@ -1,3 +1,34 @@
+import plotly.express as px
+import pandas as pd
+
+# Explode the 'procedure' column to separate each procedure into its own row
+procedures_df = filtered_df.explode('procedure')
+
+# Group by 'procedure' and count how many sentences (rows) are associated with each procedure
+procedure_sentence_count = procedures_df.groupby('procedure').size().reset_index(name='sentence_count')
+
+# Sort by sentence count for better visualization
+procedure_sentence_count = procedure_sentence_count.sort_values(by='sentence_count', ascending=False)
+
+# Create a bar chart with Plotly
+fig = px.bar(procedure_sentence_count,
+             x='procedure', 
+             y='sentence_count', 
+             hover_name='procedure',  # This will show procedure name on hover
+             title='Sentence Count per Procedure')
+
+# Customize layout
+fig.update_layout(
+    xaxis_title='Procedure',
+    yaxis_title='Sentence Count',
+    xaxis_tickangle=-45,  # Rotate x-axis labels
+    height=600,
+    width=1000
+)
+
+# Show the plot
+fig.show()
+
 
 import matplotlib.pyplot as plt
 import pandas as pd

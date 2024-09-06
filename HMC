@@ -1,3 +1,19 @@
+# Assuming your dataframe is named 'filtered_df' and has a 'Procedure Description' column
+
+# Apply the predict function to all sentences in the 'Procedure Description' column
+def apply_prediction(row):
+    sentence = row['Procedure Description']  # Modify if needed
+    return predict(model, sentence)
+
+# Run prediction for each row in the dataframe and store the results in new columns
+filtered_df[['predicted_procedures', 'predicted_objectives', 'predicted_standards', 'predicted_domains']] = (
+    filtered_df.apply(lambda row: pd.Series(apply_prediction(row)), axis=1)
+)
+
+# Display the dataframe with the predictions
+print(filtered_df[['Procedure Description', 'predicted_procedures', 'predicted_objectives', 'predicted_standards', 'predicted_domains']].head())
+
+
 import boto3
 
 # Variables for the role and S3 bucket

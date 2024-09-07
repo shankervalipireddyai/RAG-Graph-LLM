@@ -1,5 +1,135 @@
 import torch
 import torch.nn as nn
+from transformers import RobertaTokenizer, RobertaModel, AdamW
+from torch.utils.data import DataLoader, TensorDataset
+from sklearn.preprocessing import MultiLabelBinarizer
+
+# Assuming 'filtered_df' contains the sentence and procedure columns
+# Example columns: 'sentence_column' and 'procedure_labels_column'
+sentences = filtered_df['extended_text'].tolist()  # Replace with your actual sentence column name
+labels_procedures = filtered_df['procedure'].tolist()  # Replace with your actual procedure label column
+
+# Convert lists of strings to list of lists (if it's a string representation of lists, use eval)
+labels_procedures = [eval(label) if isinstance(label, str) else label for label in labels_procedures]
+
+# MultiLabelBinarizer to one-hot encode the procedure labels
+mlb = MultiLabelBinarizer()
+encoded_labels = mlb.fit_transform(labels_procedures)
+
+# Convert the encoded labels to a tensor
+labels_procedures = torch.tensor(encoded_labels, dtype=torch.float32)
+
+# Tokenizer
+tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+
+def tokenize_sentences(sentences, tokenizer, max_len=512):
+    inputs = [tokenizer(sentence, padding='max_length', truncation=True, max_length=max_len, return_tensors="pt") for sentence in sentences]
+    input_ids = torch.cat([input['input_ids'] for input in inputs], dim=0)  # (batch_size, max_len)
+    return input_ids
+
+# Tokenize your input sentences
+input_ids = tokenize_sentences(sentences, tokenizer)
+
+# Dataset and DataLoader
+train_dataset = TensorDataset(input_ids, labels_procedures)
+train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
+
+# Define the Model
+class RobertaMultiLabelClassifier(nn.Module):
+    def __init__(self, num_labels):
+        super(RobertaMultiLabelClassifier, self).__init__()
+        self.roberta = RobertaModel.from_pretrained('roberta-base')
+        self.classifier = nn.Linear(self.roberta.config.hidden_size, num_labels)
+    
+    def forward(self, input_ids):
+        outputs = self.roberta(input_ids=input_ids)
+        pooled_output = outputs.pooler_output  # Get the pooled output
+        logits = self.classifier(pooled_output)
+        return logits
+
+# Initialize model
+num_procedures = len(mlb.classes_)
+model = RobertaMultiLabelClassifier(num_labels=num_procedures)
+
+# Optimizer and Loss Function
+optimizer = AdamW(model.parameters(), lr=1e-5)
+loss_fn = nn.BCEWithLogitsLoss()
+
+# Training Loop
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model.to(device)
+
+epochs = 5
+for epoch in range(epochs):
+    model.train()
+    total_loss = 0
+    for batch in train_loader:
+        batch_input_ids, batch_labels = [x.to(device) for x in batch]
+
+        # Forward pass
+        logits = model(batch_input_ids)
+        loss = loss_fn(logits, batch_labels)
+
+        # Backward pass
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        total_loss += loss.item()
+
+    avg_loss = total_loss / len(train_loader)
+    print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
+
+# Prediction Function
+def predict(model, sentence):
+    model.eval()
+    tokens = tokenizer(sentence, return_tensors="pt", padding='max_length', truncation=True, max_length=512)
+    input_ids = tokens['input_ids'].to(device)
+
+    with torch.no_grad():
+        logits = model(input_ids)
+
+    # Apply sigmoid to get probabilities
+    procedure_probs = torch.sigmoid(logits).squeeze().cpu().numpy()
+
+    # Convert probabilities to binary predictions (threshold can be adjusted)
+    procedure_preds = procedure_probs > 0.5
+
+    # Map binary predictions to class names
+    procedures = mlb.inverse_transform([procedure_preds])[0]
+
+    return {
+        "sentence": sentence,
+        "procedures": list(procedures)
+    }
+
+# Example usage
+example_sentence = "Implement network access control."
+prediction = predict(model, example_sentence)
+print(prediction)
+
+# Predict on a dataframe
+def predict_on_dataframe(model, dataframe):
+    predictions = []
+    for sentence in dataframe['extended_text']:
+        result = predict(model, sentence)
+        predictions.append(result)
+    return predictions
+
+# Get predictions for the first 200 rows
+df_predictions = predict_on_dataframe(model, filtered_df.head(200))
+print(df_predictions)
+
+
+
+
+
+
+
+
+
+import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 from transformers import AdamW, RobertaTokenizer
 from torch.nn.utils.rnn import pad_sequence

@@ -1,3 +1,25 @@
+# Maximum length for RoBERTa model
+MAX_LEN = 512
+
+# Truncate input sequences to the maximum length and ensure padding if necessary
+def preprocess_input(text):
+    # Tokenize the input
+    inputs = tokenizer(
+        text,
+        max_length=MAX_LEN,
+        padding='max_length',  # Pad to the maximum length
+        truncation=True,       # Truncate to the maximum length
+        return_tensors='pt'    # Return PyTorch tensors
+    )
+    return inputs
+
+# Example usage for a batch of input sentences
+input_text = ["This is an example sentence.", "Another sentence for testing."]
+batch_inputs = [preprocess_input(text) for text in input_text]
+
+
+
+
 1. Install Required Libraries
 First, ensure you have the required libraries installed:
 

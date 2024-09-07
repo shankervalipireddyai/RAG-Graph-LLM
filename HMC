@@ -1,3 +1,202 @@
+1. Install Required Libraries
+First, ensure you have the required libraries installed:
+
+bash
+Copy code
+pip install torch transformers scikit-learn pandas
+2. Data Preprocessing
+We'll use a filtered_df that contains sentences and corresponding multi-labels for procedures.
+
+python
+Copy code
+import pandas as pd
+from sklearn.preprocessing import MultiLabelBinarizer
+from transformers import RobertaTokenizer
+
+# Assume `filtered_df` is your dataset with the columns 'extended_text' (sentences) and 'procedure' (multi-labels)
+
+# Example dataframe
+# filtered_df = pd.read_csv('your_filtered_df.csv')
+
+# Tokenization
+tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+
+# Convert 'procedure' column into multi-hot vectors (multi-label binarization)
+mlb_procedure = MultiLabelBinarizer()
+filtered_df['procedure'] = filtered_df['procedure'].apply(lambda x: eval(x) if isinstance(x, str) else x)
+multi_hot_procedures = mlb_procedure.fit_transform(filtered_df['procedure'])
+
+# Tokenize sentences
+def tokenize_sentence(sentence):
+    return tokenizer(sentence, padding='max_length', truncation=True, return_tensors='pt')['input_ids'].squeeze()
+
+# Apply tokenization to the entire dataset
+filtered_df['input_ids'] = filtered_df['extended_text'].apply(tokenize_sentence)
+
+# Splitting input_ids and labels for training
+input_ids = torch.stack(filtered_df['input_ids'].values)
+labels_procedures = torch.tensor(multi_hot_procedures, dtype=torch.float32)
+3. Define the Model
+We’ll build a RoBERTa model with a classification head for multi-label classification:
+
+python
+Copy code
+import torch
+import torch.nn as nn
+from transformers import RobertaModel
+
+class RobertaMultiLabelClassifier(nn.Module):
+    def __init__(self, num_procedures):
+        super(RobertaMultiLabelClassifier, self).__init__()
+        self.roberta = RobertaModel.from_pretrained('roberta-base')
+        self.classifier = nn.Linear(self.roberta.config.hidden_size, num_procedures)
+    
+    def forward(self, input_ids):
+        outputs = self.roberta(input_ids=input_ids)
+        pooled_output = outputs.pooler_output
+        logits = self.classifier(pooled_output)
+        return logits
+
+# Initialize the model
+num_procedures = len(mlb_procedure.classes_)
+model = RobertaMultiLabelClassifier(num_procedures)
+4. Training Loop
+We'll train the model using Binary Cross Entropy Loss and AdamW optimizer.
+
+python
+Copy code
+from torch.utils.data import DataLoader, TensorDataset
+from transformers import AdamW
+
+# Dataset and DataLoader
+train_dataset = TensorDataset(input_ids, labels_procedures)
+train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
+
+# Optimizer and Loss Function
+optimizer = AdamW(model.parameters(), lr=1e-5)
+loss_fn = nn.BCEWithLogitsLoss()
+
+# Training Loop
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model.to(device)
+
+epochs = 5
+for epoch in range(epochs):
+    model.train()
+    total_loss = 0
+    for batch in train_loader:
+        batch_input_ids, batch_labels = [x.to(device) for x in batch]
+
+        # Forward pass
+        logits = model(batch_input_ids)
+        loss = loss_fn(logits, batch_labels)
+
+        # Backward pass
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        total_loss += loss.item()
+
+    avg_loss = total_loss / len(train_loader)
+    print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
+5. Prediction Function
+Now we’ll write a function to make predictions for a given sentence:
+
+python
+Copy code
+def predict(model, sentence):
+    model.eval()
+    tokens = tokenize_sentence(sentence).unsqueeze(0).to(device)  # Add batch dimension
+    with torch.no_grad():
+        logits = model(tokens)
+
+    # Apply sigmoid to get probabilities
+    procedure_probs = torch.sigmoid(logits).squeeze().cpu().numpy()
+
+    # Convert probabilities to binary predictions (threshold can be adjusted)
+    procedure_preds = procedure_probs > 0.5
+
+    # Map binary predictions to procedure names
+    procedures = mlb_procedure.inverse_transform([procedure_preds])[0]
+
+    return {
+        "sentence": sentence,
+        "procedures": list(procedures)
+    }
+6. Evaluation and Model Validation
+You can validate the model on a test dataset, but here we use an example prediction:
+
+python
+Copy code
+# Example usage
+sentence = "Implement network access control."
+predictions = predict(model, sentence)
+print(predictions)
+7. Evaluate Model Performance
+We’ll use accuracy, precision, recall, and F1-score to evaluate the model's performance.
+
+python
+Copy code
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
+def evaluate_model(model, test_loader):
+    model.eval()
+    all_labels = []
+    all_preds = []
+    with torch.no_grad():
+        for batch in test_loader:
+            batch_input_ids, batch_labels = [x.to(device) for x in batch]
+
+            # Forward pass
+            logits = model(batch_input_ids)
+            procedure_probs = torch.sigmoid(logits)
+
+            # Convert probabilities to binary predictions
+            procedure_preds = procedure_probs > 0.5
+
+            all_labels.append(batch_labels.cpu().numpy())
+            all_preds.append(procedure_preds.cpu().numpy())
+
+    # Calculate evaluation metrics
+    all_labels = np.vstack(all_labels)
+    all_preds = np.vstack(all_preds)
+    
+    accuracy = accuracy_score(all_labels, all_preds)
+    precision = precision_score(all_labels, all_preds, average='micro')
+    recall = recall_score(all_labels, all_preds, average='micro')
+    f1 = f1_score(all_labels, all_preds, average='micro')
+
+    print(f"Accuracy: {accuracy:.4f}")
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall: {recall:.4f}")
+    print(f"F1 Score: {f1:.4f}")
+
+# Example test evaluation
+test_loader = DataLoader(train_dataset, batch_size=16, shuffle=False)  # You should use a real test dataset
+evaluate_model(model, test_loader)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 1. Data Preprocessing
 python
 Copy code

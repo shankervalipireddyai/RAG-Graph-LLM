@@ -1,4 +1,63 @@
-# Maximum length for RoBERTa model
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader, TensorDataset
+from transformers import AdamW, RobertaTokenizer
+from torch.nn.utils.rnn import pad_sequence
+
+# Assume you have a RoBERTa model and tokenizer
+tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+model = model.to(device)  # Assuming 'model' is your pre-trained Roberta model
+
+# Example sentence and labels (adjust as needed)
+sentences = filtered_df['sentence_column'].tolist()  # Replace 'sentence_column' with your actual column name
+labels_procedures = filtered_df['procedure_labels_column'].tolist()  # Replace with actual procedure label column
+
+# Tokenization function with truncation and padding
+def tokenize_sentences(sentences, tokenizer, max_len=512):
+    inputs = [tokenizer(sentence, padding='max_length', truncation=True, max_length=max_len, return_tensors="pt") for sentence in sentences]
+    input_ids = torch.cat([input['input_ids'] for input in inputs], dim=0)  # (batch_size, max_len)
+    return input_ids
+
+# Tokenize your input sentences
+input_ids = tokenize_sentences(sentences, tokenizer)
+
+# Convert labels to tensors
+labels_procedures = torch.tensor(labels_procedures, dtype=torch.float32)
+
+# Dataset and DataLoader
+train_dataset = TensorDataset(input_ids, labels_procedures)
+train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
+
+# Optimizer and Loss Function
+optimizer = AdamW(model.parameters(), lr=1e-5)
+loss_fn = nn.BCEWithLogitsLoss()
+
+# Training Loop
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model.to(device)
+
+epochs = 5
+for epoch in range(epochs):
+    model.train()
+    total_loss = 0
+    for batch in train_loader:
+        batch_input_ids, batch_labels = [x.to(device) for x in batch]
+
+        # Forward pass
+        logits = model(batch_input_ids).logits  # .logits for transformer models
+        loss = loss_fn(logits, batch_labels)
+
+        # Backward pass
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        total_loss += loss.item()
+
+    avg_loss = total_loss / len(train_loader)
+    print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
+
+ # Maximum length for RoBERTa model
 MAX_LEN = 512
 
 # Truncate input sequences to the maximum length and ensure padding if necessary

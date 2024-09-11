@@ -1,3 +1,195 @@
+Fine-tuning large models like Mistral 7B can be resource-intensive, but by using techniques like LoRA (Low-Rank Adaptation) and PEFT (Parameter-Efficient Fine-Tuning), you can significantly reduce memory consumption and speed up the process. These methods update only a small subset of parameters, making the process much lighter.
+
+I’ll walk you through the code to fine-tune Mistral 7B using LoRA and PEFT on AWS SageMaker. LoRA focuses on injecting low-rank matrices into the attention layers, while PEFT enables tuning only a few layers.
+
+We’ll use the peft library with LoRA on top of Mistral 7B.
+
+Required Libraries:
+
+	•	peft: For efficient parameter tuning.
+	•	transformers: For loading the base Mistral model.
+
+You can install the required libraries in your SageMaker notebook environment as follows:
+
+!pip install peft transformers accelerate datasets
+
+Updated Code Using LoRA
+
+Here’s how you can fine-tune Mistral 7B with LoRA using PEFT on AWS SageMaker.
+
+1. Setup: Tokenization and Data Preparation
+
+We’ll start by tokenizing the data, similar to your original code. Mistral 7B will be loaded using the AutoTokenizer from Hugging Face’s transformers.
+
+from transformers import AutoTokenizer
+import torch
+from torch.utils.data import DataLoader, TensorDataset
+from sklearn.preprocessing import MultiLabelBinarizer
+
+# Load the Mistral 7B tokenizer
+tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B")
+
+# Tokenization function
+def tokenize_sentences(sentences, tokenizer, max_len=512):
+    inputs = tokenizer(sentences, padding='max_length', truncation=True, max_length=max_len, return_tensors="pt")
+    return inputs['input_ids']
+
+# Tokenize sentences (assuming 'filtered_df' is your dataframe)
+sentences = filtered_df['extended_text'].tolist()
+input_ids = tokenize_sentences(sentences, tokenizer)
+
+# Prepare labels for multi-label classification
+labels_procedures = filtered_df['procedure'].tolist()
+mlb = MultiLabelBinarizer()
+encoded_labels = mlb.fit_transform(labels_procedures)
+labels_procedures = torch.tensor(encoded_labels, dtype=torch.float32)
+
+# Create dataset and dataloader
+train_dataset = TensorDataset(input_ids, labels_procedures)
+train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
+
+2. PEFT and LoRA Setup
+
+PEFT enables you to apply LoRA by focusing only on the most critical parameters. The key idea is to update only a small, low-rank subspace in the model’s weight matrices during fine-tuning.
+
+from peft import get_peft_model, LoraConfig, TaskType
+from transformers import AutoModelForCausalLM
+
+# Load Mistral 7B model
+model = AutoModelForCausalLM.from_pretrained('mistralai/Mistral-7B')
+
+# Define LoRA configuration
+lora_config = LoraConfig(
+    task_type=TaskType.CAUSAL_LM,    # Set to causal language modeling
+    r=16,                            # Low-rank dimension
+    lora_alpha=32,                   # LoRA scaling factor
+    lora_dropout=0.1,                # Dropout for LoRA layers
+    target_modules=["q_proj", "v_proj"]  # Apply LoRA on query and value projections in attention layers
+)
+
+# Apply LoRA to the model
+model = get_peft_model(model, lora_config)
+
+3. Training Loop with Mixed Precision
+
+Using mixed precision (torch.cuda.amp) helps reduce memory usage. Here’s the training loop:
+
+import torch
+import torch.nn as nn
+from transformers import AdamW, get_linear_schedule_with_warmup
+
+# Move model to device (GPU if available)
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model.to(device)
+
+# Optimizer and scheduler
+optimizer = AdamW(model.parameters(), lr=2e-5)
+num_training_steps = len(train_loader) * 3  # 3 epochs
+scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps=num_training_steps)
+loss_fn = nn.BCEWithLogitsLoss()
+
+# Mixed precision training
+scaler = torch.cuda.amp.GradScaler()
+
+# Training loop
+epochs = 3
+for epoch in range(epochs):
+    model.train()
+    total_loss = 0
+    print(f"Starting Epoch {epoch + 1}/{epochs}...")
+    
+    for batch_idx, batch in enumerate(train_loader):
+        batch_input_ids, batch_labels = [x.to(device) for x in batch]
+        
+        optimizer.zero_grad()
+
+        with torch.cuda.amp.autocast():
+            logits = model(batch_input_ids).logits  # Adjust for causal language model
+            loss = loss_fn(logits, batch_labels)
+        
+        # Backpropagation with scaling
+        scaler.scale(loss).backward()
+
+        # Step optimizer and update scaler
+        scaler.step(optimizer)
+        scaler.update()
+
+        # Scheduler step
+        scheduler.step()
+
+        total_loss += loss.item()
+
+        # Logging
+        if (batch_idx + 1) % 10 == 0:
+            print(f"Batch {batch_idx+1}/{len(train_loader)}, Loss: {loss.item():.4f}")
+
+    avg_loss = total_loss / len(train_loader)
+    print(f"Epoch {epoch+1}/{epochs} completed. Average Loss: {avg_loss:.4f}")
+
+4. Save the Fine-Tuned Model
+
+After fine-tuning, save the model. SageMaker will handle uploading the model artifacts to S3 for deployment.
+
+import os
+
+# Save LoRA fine-tuned model
+model_save_path = os.path.join("mistral_lora_fine_tuned")
+os.makedirs(model_save_path, exist_ok=True)
+model.save_pretrained(model_save_path)
+
+5. Deploying on AWS SageMaker
+
+Deploy the fine-tuned model using SageMaker with Hugging Face integration.
+
+from sagemaker.huggingface import HuggingFaceModel
+
+# Define Hugging Face model
+huggingface_model = HuggingFaceModel(
+    model_data=f"s3://{bucket}/mistral_lora_fine_tuned.tar.gz",
+    role=role,
+    transformers_version="4.26",
+    pytorch_version="1.13",
+    py_version="py39"
+)
+
+# Deploy the model
+predictor = huggingface_model.deploy(
+    initial_instance_count=1,
+    instance_type="ml.p4d.24xlarge"  # Adjust based on needs
+)
+
+Key Points:
+
+	•	LoRA (Low-Rank Adaptation) helps by updating only a low-rank subset of model weights during fine-tuning, reducing memory and computation.
+	•	PEFT library enables efficient tuning of large models like Mistral 7B.
+	•	Mixed precision training reduces memory usage and improves speed on GPUs.
+	•	SageMaker deployment allows you to deploy the fine-tuned model for inference.
+
+With this setup, you should be able to fine-tune and deploy Mistral 7B on a legal text classification task in a memory-efficient way using AWS SageMaker.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import torch
 import torch.nn as nn
 from transformers import RobertaTokenizer, RobertaModel, AdamW

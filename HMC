@@ -1,3 +1,179 @@
+# Install required libraries
+!pip install transformers peft bitsandbytes torchdatasets
+
+import torch
+import torch.nn as nn
+from torch.optim import AdamW
+from torch.utils.data import DataLoader, TensorDataset
+from transformers import AutoTokenizer, AutoModel, get_linear_schedule_with_warmup
+from peft import LoraConfig, get_peft_model
+import bitsandbytes as bnb
+from sklearn.preprocessing import MultiLabelBinarizer
+import time
+from torch.cuda.amp import autocast, GradScaler
+
+# Tokenization and Preprocessing
+def tokenize_sentences(sentences, tokenizer, max_len=256):
+    print("Tokenizing sentences...")
+    start_time = time.time()
+    inputs = [tokenizer(sentence, padding='max_length', truncation=True, max_length=max_len, return_tensors="pt") for sentence in sentences]
+    input_ids = torch.cat([input['input_ids'] for input in inputs], dim=0)
+    print(f"Tokenization completed in {time.time() - start_time:.2f} seconds.")
+    return input_ids
+
+# Data Preparation
+# Assuming 'filtered_df' contains the sentence and procedure columns
+sentences = filtered_df['extended_text'].tolist()
+labels_procedures = filtered_df['procedure'].tolist()
+labels_procedures = [eval(label) if isinstance(label, str) else label for label in labels_procedures]
+mlb = MultiLabelBinarizer()
+encoded_labels = mlb.fit_transform(labels_procedures)
+labels_procedures = torch.tensor(encoded_labels, dtype=torch.float32)
+
+# Initialize tokenizer
+tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B")
+
+# Tokenize sentences
+input_ids = tokenize_sentences(sentences, tokenizer)
+
+# Dataset and DataLoader
+train_dataset = TensorDataset(input_ids, labels_procedures)
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4, pin_memory=True)
+
+# Custom Model with Multi-Label Classification Head
+class MistralMultiLabelClassifier(nn.Module):
+    def __init__(self, num_labels):
+        super(MistralMultiLabelClassifier, self).__init__()
+        self.mistral = AutoModel.from_pretrained(
+            "mistralai/Mistral-7B",
+            load_in_8bit=True,  # Quantize with bitsandbytes
+            device_map='auto',
+            quantization_config=bnb.QuantizationConfig(load_in_8bit=True)
+        )
+        self.classifier = nn.Linear(self.mistral.config.hidden_size, num_labels)  # Custom linear layer for multi-label classification
+
+    def forward(self, input_ids):
+        outputs = self.mistral(input_ids=input_ids)
+        pooled_output = outputs.pooler_output  # Use the pooled output from the model
+        logits = self.classifier(pooled_output)
+        return logits
+
+# Apply LoRA PEFT
+lora_config = LoraConfig(
+    r=8,  # Rank for LoRA layers
+    lora_alpha=16,
+    target_modules=["query", "key", "value"],  # Layers to apply LoRA (usually attention layers)
+    lora_dropout=0.1,
+    bias="none"
+)
+
+# Number of procedures (labels)
+num_procedures = len(mlb.classes_)
+
+# Initialize model with custom classifier
+model = MistralMultiLabelClassifier(num_labels=num_procedures)
+model = get_peft_model(model, lora_config)
+
+# Optimizer, Scheduler, and Loss Function
+optimizer = AdamW(model.parameters(), lr=2e-5)
+num_training_steps = len(train_loader) * 3  # 3 epochs
+scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps=num_training_steps)
+loss_fn = nn.BCEWithLogitsLoss()
+
+# Mixed Precision Training
+scaler = GradScaler()
+
+# Training Loop
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model.to(device)
+
+epochs = 3
+for epoch in range(epochs):
+    print(f"Starting Epoch {epoch + 1}/{epochs}...")
+    epoch_start_time = time.time()
+    model.train()
+    total_loss = 0
+
+    for batch_idx, batch in enumerate(train_loader):
+        batch_start_time = time.time()
+        batch_input_ids, batch_labels = [x.to(device) for x in batch]
+
+        optimizer.zero_grad()
+
+        # Mixed precision forward pass
+        with autocast():
+            logits = model(batch_input_ids)
+            loss = loss_fn(logits, batch_labels)
+
+        # Backward pass with scaling
+        scaler.scale(loss).backward()
+
+        # Gradient clipping (optional)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+
+        # Optimizer step and scaler update
+        scaler.step(optimizer)
+        scaler.update()
+
+        scheduler.step()
+
+        total_loss += loss.item()
+
+        # Print progress for every batch
+        print(f"Batch {batch_idx + 1}/{len(train_loader)} completed in {time.time() - batch_start_time:.2f} seconds. Loss: {loss.item():.4f}")
+
+    avg_loss = total_loss / len(train_loader)
+    print(f"Epoch {epoch+1}/{epochs} completed in {time.time() - epoch_start_time:.2f} seconds. Average Loss: {avg_loss:.4f}\n")
+
+
+# Prediction Step
+def tokenize_for_prediction(sentences, tokenizer, max_len=512):
+    inputs = tokenizer(sentences, padding='max_length', truncation=True, max_length=max_len, return_tensors="pt")
+    return inputs['input_ids']
+
+# Example sentence for prediction
+sentence = ["Sample legal text that you want to classify."]
+input_ids = tokenize_for_prediction(sentence, tokenizer)
+
+# Move to device
+input_ids = input_ids.to(device)
+
+# Prediction with quantized model
+model.eval()
+with torch.no_grad():
+    with autocast():  # Use mixed precision for inference
+        logits = model(input_ids)
+
+# Apply sigmoid to get probabilities
+probabilities = torch.sigmoid(logits)
+
+# Define a threshold to get the final labels (e.g., 0.5)
+threshold = 0.5
+predicted_labels = (probabilities > threshold).int()
+
+# Convert predictions to readable format (using MultiLabelBinarizer)
+predicted_labels = predicted_labels.cpu()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Fine-tuning large models like Mistral 7B can be resource-intensive, but by using techniques like LoRA (Low-Rank Adaptation) and PEFT (Parameter-Efficient Fine-Tuning), you can significantly reduce memory consumption and speed up the process. These methods update only a small subset of parameters, making the process much lighter.
 
 I’ll walk you through the code to fine-tune Mistral 7B using LoRA and PEFT on AWS SageMaker. LoRA focuses on injecting low-rank matrices into the attention layers, while PEFT enables tuning only a few layers.

@@ -1,4 +1,118 @@
-# Install required libraries
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader, TensorDataset
+from transformers import AutoTokenizer, AutoModel
+from peft import LoraConfig, get_peft_model
+import bitsandbytes as bnb
+from sklearn.preprocessing import MultiLabelBinarizer
+import time
+from torch.cuda.amp import autocast
+from torch.nn.functional import cosine_similarity
+
+# Tokenization and Preprocessing
+def tokenize_sentences(sentences, tokenizer, max_len=256):
+    inputs = [tokenizer(sentence, padding='max_length', truncation=True, max_length=max_len, return_tensors="pt") for sentence in sentences]
+    input_ids = torch.cat([input['input_ids'] for input in inputs], dim=0)
+    return input_ids
+
+# Data Preparation
+sentences = filtered_df['extended_text'].tolist()
+procedures = filtered_df['procedure'].tolist()
+
+# Tokenize sentences and procedures
+tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B")
+sentence_input_ids = tokenize_sentences(sentences, tokenizer)
+procedure_input_ids = tokenize_sentences(procedures, tokenizer)
+
+# Custom Model to Extract Embeddings
+class MistralEmbeddingExtractor(nn.Module):
+    def __init__(self):
+        super(MistralEmbeddingExtractor, self).__init__()
+        self.mistral = AutoModel.from_pretrained(
+            "mistralai/Mistral-7B",
+            load_in_8bit=True,
+            device_map='auto',
+            quantization_config=bnb.QuantizationConfig(load_in_8bit=True)
+        )
+
+    def forward(self, input_ids):
+        outputs = self.mistral(input_ids=input_ids)
+        embeddings = outputs.pooler_output  # Extract the pooled output as embeddings
+        return embeddings
+
+# Apply LoRA PEFT
+lora_config = LoraConfig(
+    r=8,
+    lora_alpha=16,
+    target_modules=["query", "key", "value"],
+    lora_dropout=0.1,
+    bias="none"
+)
+
+# Initialize the model and apply LoRA
+model = MistralEmbeddingExtractor()
+model = get_peft_model(model, lora_config)
+
+# Load model onto the device
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model.to(device)
+
+# Extract Embeddings for Sentences and Procedures
+def extract_embeddings(input_ids):
+    input_ids = input_ids.to(device)
+    with torch.no_grad():
+        with autocast():
+            embeddings = model(input_ids)
+    return embeddings
+
+# Extract embeddings for all sentences and procedures
+sentence_embeddings = extract_embeddings(sentence_input_ids)
+procedure_embeddings = extract_embeddings(procedure_input_ids)
+
+# Compute Cosine Similarity between Sentence Embeddings and Procedure Embeddings
+def compute_cosine_similarity(sentence_embeddings, procedure_embeddings):
+    similarities = cosine_similarity(sentence_embeddings.unsqueeze(1), procedure_embeddings.unsqueeze(0), dim=-1)
+    return similarities
+
+# Compute similarities
+cosine_similarities = compute_cosine_similarity(sentence_embeddings, procedure_embeddings)
+
+# Map Sentences to Procedures based on the Highest Cosine Similarity
+# For each sentence, find the procedure with the highest cosine similarity
+similarity_scores, predicted_procedure_indices = torch.max(cosine_similarities, dim=1)
+
+# Convert indices to procedures
+predicted_procedures = [procedures[idx] for idx in predicted_procedure_indices.tolist()]
+
+# Example: Print the first 5 sentence mappings
+for i in range(5):
+    print(f"Sentence: {sentences[i]}")
+    print(f"Predicted Procedure: {predicted_procedures[i]}")
+    print(f"Similarity Score: {similarity_scores[i].item():.4f}")
+    print()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Install required libraries
 !pip install transformers peft bitsandbytes torchdatasets
 
 import torch

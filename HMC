@@ -1,3 +1,75 @@
+1. Install Required Libraries
+
+Ensure you have the necessary libraries installed:
+
+pip install transformers torch
+
+2. Load the Locally Saved RoBERTa Model
+
+Assuming you’ve already downloaded the model and its tokenizer, you can load them from the local directory:
+
+from transformers import RobertaTokenizer, RobertaForSequenceClassification
+import torch
+
+# Load the tokenizer and model from the local directory
+model_dir = "path/to/your/local/roberta/model"
+
+tokenizer = RobertaTokenizer.from_pretrained(model_dir)
+model = RobertaForSequenceClassification.from_pretrained(model_dir)
+
+# Ensure the model is in evaluation mode
+model.eval()
+
+Replace "path/to/your/local/roberta/model" with the actual directory where your model and tokenizer are saved.
+
+3. Perform Inference
+
+You can now use the model to perform inference on a given text. Here’s an example of how to do this:
+
+# Example input text
+text = "This is a sample sentence for testing."
+
+# Tokenize the input
+inputs = tokenizer(text, return_tensors="pt")
+
+# Run the model on the input
+with torch.no_grad():  # Disable gradient calculation for inference
+    outputs = model(**inputs)
+
+# Get the predicted logits
+logits = outputs.logits
+
+# Optionally, convert logits to probabilities
+probabilities = torch.softmax(logits, dim=-1)
+
+# Get predicted class (for classification models)
+predicted_class = torch.argmax(logits, dim=-1)
+
+print(f"Logits: {logits}")
+print(f"Probabilities: {probabilities}")
+print(f"Predicted class: {predicted_class.item()}")
+
+Key Poin
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset

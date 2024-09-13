@@ -8,6 +8,127 @@ from torch.nn.functional import cosine_similarity
 
 # Tokenization and Preprocessing
 def tokenize_sentences(sentences, tokenizer, max_len=256):
+    """Tokenize a list of sentences, ensuring the output is in the expected format."""
+    inputs = tokenizer(sentences, padding='max_length', truncation=True, max_length=max_len, return_tensors="pt")
+    input_ids = inputs['input_ids']
+    attention_mask = inputs['attention_mask']
+    return input_ids, attention_mask
+
+# Data Preparation
+sentences = filtered_df['extended_text'].tolist()
+procedures = filtered_df['procedure'].tolist()
+
+# Tokenize sentences and procedures
+tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B")
+sentence_input_ids, sentence_attention_mask = tokenize_sentences(sentences, tokenizer)
+procedure_input_ids, procedure_attention_mask = tokenize_sentences(procedures, tokenizer)
+
+# Custom Model to Extract Embeddings
+class MistralEmbeddingExtractor(nn.Module):
+    def __init__(self):
+        super(MistralEmbeddingExtractor, self).__init__()
+        self.mistral = AutoModel.from_pretrained(
+            "mistralai/Mistral-7B",
+            load_in_8bit=True,
+            device_map='auto',
+            quantization_config=bnb.QuantizationConfig(load_in_8bit=True)
+        )
+
+    def forward(self, input_ids, attention_mask=None):
+        outputs = self.mistral(input_ids=input_ids, attention_mask=attention_mask)
+        # Take the mean of the last hidden state to represent the sentence embedding
+        embeddings = outputs.last_hidden_state.mean(dim=1)
+        return embeddings
+
+# Apply LoRA PEFT
+lora_config = LoraConfig(
+    r=8,
+    lora_alpha=16,
+    target_modules=["q_proj", "v_proj"],  # target the appropriate modules in Mistral
+    lora_dropout=0.1,
+    bias="none"
+)
+
+# Initialize the model and apply LoRA
+model = MistralEmbeddingExtractor()
+model = get_peft_model(model, lora_config)
+
+# Load model onto the device
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model.to(device)
+
+# Extract Embeddings for Sentences and Procedures
+def extract_embeddings(input_ids, attention_mask):
+    input_ids = input_ids.to(device)
+    attention_mask = attention_mask.to(device)
+    with torch.no_grad():
+        with autocast():
+            embeddings = model(input_ids, attention_mask)
+    return embeddings
+
+# Extract embeddings for all sentences and procedures
+sentence_embeddings = extract_embeddings(sentence_input_ids, sentence_attention_mask)
+procedure_embeddings = extract_embeddings(procedure_input_ids, procedure_attention_mask)
+
+# Compute Cosine Similarity between Sentence Embeddings and Procedure Embeddings
+def compute_cosine_similarity(sentence_embeddings, procedure_embeddings):
+    similarities = cosine_similarity(sentence_embeddings.unsqueeze(1), procedure_embeddings.unsqueeze(0), dim=-1)
+    return similarities
+
+# Compute similarities
+cosine_similarities = compute_cosine_similarity(sentence_embeddings, procedure_embeddings)
+
+# Map Sentences to Procedures based on the Highest Cosine Similarity
+similarity_scores, predicted_procedure_indices = torch.max(cosine_similarities, dim=1)
+
+# Convert indices to procedures
+predicted_procedures = [procedures[idx] for idx in predicted_procedure_indices.tolist()]
+
+# Example: Print the first 5 sentence mappings
+for i in range(5):
+    print(f"Sentence: {sentences[i]}")
+    print(f"Predicted Procedure: {predicted_procedures[i]}")
+    print(f"Similarity Score: {similarity_scores[i].item():.4f}")
+    print()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import torch
+import torch.nn as nn
+from transformers import AutoTokenizer, AutoModel
+from peft import LoraConfig, get_peft_model
+import bitsandbytes as bnb
+from torch.cuda.amp import autocast
+from torch.nn.functional import cosine_similarity
+
+# Tokenization and Preprocessing
+def tokenize_sentences(sentences, tokenizer, max_len=256):
     inputs = tokenizer(sentences, padding='max_length', truncation=True, max_length=max_len, return_tensors="pt")
     input_ids = inputs['input_ids']
     return input_ids

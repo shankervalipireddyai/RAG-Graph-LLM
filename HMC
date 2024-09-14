@@ -1,3 +1,162 @@
+pip install torch sentence-transformers scikit-learn cohere ray
+pip install chromadb,pyPDF2
+
+import uuid 
+import chromadb
+from sentence_transformers import SentenceTransformer
+import numpy as np
+from pathlib import Path
+from PyPDF2 import PdfReader
+import os
+
+# Initialize Sentence Embedding Model (GTE-Large)
+embed_model = SentenceTransformer('thenlper/gte-large')
+
+# Initialize ChromaDB client
+client = chromadb.Client()
+collection_name = "pdf_embeddings"
+collection = client.get_or_create_collection(name=collection_name)
+
+def read_pdf(file_path):
+    try:
+        with open(file_path, 'rb') as file:
+            pdf = PdfReader(file)
+            text = ""
+            for page in pdf.pages:
+                text += page.extract_text()
+        print(f"Successfully read PDF: {file_path}")
+        return text
+    except Exception as e:
+        print(f"Error reading PDF {file_path}: {e}")
+        return ""
+
+def chunk_text(text, chunk_size=1000, overlap=200):
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = start + chunk_size
+        if end > len(text):
+            end = len(text)
+        chunks.append(text[start:end])
+        start = end - overlap
+    return chunks
+
+def process_pdf(file_path):
+    text = read_pdf(file_path)
+    if not text:
+        print(f"No text extracted from {file_path}")
+        return
+    
+    print(f"Extracted text length: {len(text)}")
+    chunks = chunk_text(text)
+    print(f"Number of chunks: {len(chunks)}")
+    
+    for i, chunk in enumerate(chunks):
+        try:
+            embedding = embed_model.encode(chunk).tolist()
+            collection.add(
+                ids=[str(uuid.uuid4())],
+                documents=[chunk],
+                embeddings=[embedding],
+                metadatas=[{"source": str(file_path)}]
+            )
+            print(f"Added chunk {i+1}/{len(chunks)} with embedding of length {len(embedding)}")
+        except Exception as e:
+            print(f"Error processing chunk {i+1} from {file_path}: {e}")
+
+# Directory containing PDF files
+DATA_DIR = Path("/content/data")
+
+# Process all PDF files in the directory
+
+try:
+    for file in os.listdir(DATA_DIR):
+        if file.endswith(".pdf"):
+            file_path = DATA_DIR / file
+            print(f"Processing: {file}")
+            process_pdf(file_path)
+            print(f"Finished processing: {file}")
+    print("All PDF files have been processed.")
+except Exception as e:
+    print(f"Error during PDF processing: {e}")
+
+print(f"Total items in collection: {collection.count()}")
+print("Available collections:", client.list_collections())
+print("Collection info:", collection.get())
+
+def query_knowledge_base(query_text, n_results=3):
+    try:
+        query_embedding = embed_model.encode(query_text).tolist()
+        print(f"Query embedding length: {len(query_embedding)}")
+        print("Query parameters:")
+        print(f"Embedding: {query_embedding[:5]}... (length: {len(query_embedding)})")
+        print(f"n_results: {n_results}")
+        
+        results = collection.query(
+            query_embeddings=[query_embedding],
+            n_results=n_results,
+            include=["metadatas", "documents", "distances"]
+        )
+        print("Raw results:", results)
+        
+        if not results['documents'][0]:
+            print("No matching documents found.")
+            return
+        
+        for i, doc in enumerate(results['documents'][0]):
+            print(f"Result {i+1}:")
+            print(f"Text: {doc[:200]}...")  # Print first 200 characters
+            print(f"Source: {results['metadatas'][0][i]['source']}")
+            print(f"Similarity: {1 - results['distances'][0][i]:.4f}")
+            print()
+    except Exception as e:
+        print(f"Error during querying: {e}")
+
+# Example usage
+print("\nPerforming example query:")
+query_knowledge_base("What is the main topic of the document?")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 1. Install Required Libraries
 
 Ensure you have the necessary libraries installed:

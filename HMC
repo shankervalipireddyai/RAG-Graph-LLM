@@ -1,3 +1,127 @@
+Here’s the complete code for fine-tuning the GTE large embedding model and performing cosine similarity-based search using your dataset:
+
+### 1. **Dataset Preparation and Sentence Pairing**
+```python
+import random
+
+# Sample knowledge base data (Add more as needed)
+knowledge_base = [
+    {"sentence": "Regularly review access privileges to ensure they align with job roles.", "domain": "Access Control", "standard": "Access Reviews", "objective": "Least Privilege Enforcement", "procedure": "Periodic Access Review"},
+    {"sentence": "Apply security patches as soon as they are released.", "domain": "Risk Management", "standard": "Patch Management", "objective": "Vulnerability Mitigation", "procedure": "Patch Deployment Process"},
+    {"sentence": "Use strong encryption algorithms for all sensitive data.", "domain": "Encryption", "standard": "Data Protection", "objective": "Data Confidentiality", "procedure": "Encryption Policy Enforcement"},
+    {"sentence": "Enable logging for all security-related events.", "domain": "Monitoring and Logging", "standard": "Audit Logging", "objective": "Security Event Tracking", "procedure": "Log Management Configuration"},
+    {"sentence": "Implement least privilege access for all system users.", "domain": "Access Control", "standard": "Role-Based Access Control (RBAC)", "objective": "Access Restriction", "procedure": "RBAC Implementation"},
+    # Add more sentences from your dataset (prepare 100+ more)
+]
+
+# Create sentence pairs (positive and negative pairs)
+pairs = []
+labels = []
+
+for i, item1 in enumerate(knowledge_base):
+    for j, item2 in enumerate(knowledge_base):
+        if i != j:
+            # Define similar pairs (same domain and objective)
+            if item1["domain"] == item2["domain"] and item1["objective"] == item2["objective"]:
+                pairs.append((item1["sentence"], item2["sentence"]))
+                labels.append(1)  # Similar pair
+            else:
+                # Randomly select dissimilar pairs
+                if random.random() > 0.8:
+                    pairs.append((item1["sentence"], item2["sentence"]))
+                    labels.append(0)  # Dissimilar pair
+```
+
+### 2. **Fine-Tune GTE Large Model**
+You will fine-tune the GTE large model using `SentenceTransformer` and contrastive learning (`CosineSimilarityLoss`).
+
+```python
+from sentence_transformers import SentenceTransformer, InputExample, losses
+from torch.utils.data import DataLoader
+
+# Load the pre-trained GTE large model
+model = SentenceTransformer('thenlper/gte-large')
+
+# Convert sentence pairs into InputExamples
+train_examples = [InputExample(texts=[sent1, sent2], label=float(label)) for (sent1, sent2), label in zip(pairs, labels)]
+
+# Create DataLoader for training
+train_dataloader = DataLoader(train_examples, shuffle=True, batch_size=16)
+
+# Define the loss function (CosineSimilarityLoss)
+train_loss = losses.CosineSimilarityLoss(model)
+
+# Fine-tune the model
+model.fit(
+    train_objectives=[(train_dataloader, train_loss)],
+    epochs=1,  # You can increase this for better results
+    warmup_steps=100,
+    output_path='./fine-tuned-gte-large'  # Save the fine-tuned model
+)
+```
+
+### 3. **Generate Query Embeddings and Knowledge Base Embeddings**
+After fine-tuning, generate embeddings for both the queries and knowledge base sentences, and use cosine similarity for retrieval.
+
+```python
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Reload the fine-tuned model
+model = SentenceTransformer('./fine-tuned-gte-large')
+
+# Generate embeddings for the knowledge base
+knowledge_embeddings = [model.encode(item["sentence"]) for item in knowledge_base]
+
+# Sample query sentences (you can load real queries here)
+query_sentences = [
+    "How can we manage access control?",
+    "Explain encryption algorithms.",
+    "What is the best practice for access reviews?"
+]
+
+# Generate embeddings for the query sentences
+query_embeddings = model.encode(query_sentences)
+
+# Compute cosine similarity between query embeddings and knowledge base embeddings
+for query_embedding in query_embeddings:
+    similarities = cosine_similarity([query_embedding], knowledge_embeddings)
+    top_k = similarities[0].argsort()[-3:][::-1]  # Get top 3 similar sentences
+
+    for idx in top_k:
+        print(f"Query: {query_sentences}")
+        print(f"Matched Sentence: {knowledge_base[idx]['sentence']}")
+        print(f"Domain: {knowledge_base[idx]['domain']}, Objective: {knowledge_base[idx]['objective']}")
+        print(f"Cosine Similarity: {similarities[0][idx]:.4f}")
+        print()
+```
+
+### 4. **Evaluation**
+After running the fine-tuning and query embedding comparison, you can evaluate the retrieval performance of your fine-tuned model. Here's a breakdown of the key steps:
+1. **Dataset Preparation**: The dataset consists of sentence pairs from the knowledge base, labeled as similar or dissimilar.
+2. **Model Fine-tuning**: The GTE large model is fine-tuned using the contrastive loss function (CosineSimilarityLoss).
+3. **Embedding Generation**: Both the knowledge base sentences and the query sentences are embedded using the fine-tuned model.
+4. **Cosine Similarity Search**: Cosine similarity is calculated between the query embeddings and the knowledge base embeddings to find the most relevant results.
+
+### Summary
+This setup allows you to fine-tune the GTE large model specifically for your use case, where you need to match queries with sentences from a knowledge base. By improving the quality of the embeddings through fine-tuning, the cosine similarity search becomes more effective for retrieving relevant information.
+
+You can iterate on this by adjusting the training data, adding more sentences, and performing evaluations using metrics like NDCG or MRR to further improve the system.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 pip install torch sentence-transformers scikit-learn cohere
 
 pip install chromadb

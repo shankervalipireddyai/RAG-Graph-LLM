@@ -1,3 +1,126 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+pip install pymupdf
+
+
+import fitz  # PyMuPDF
+import os
+import re
+
+# Function to extract text from a single PDF file
+def extract_text_from_pdf(pdf_path):
+    doc = fitz.open(pdf_path)
+    text = ""
+    
+    # Iterate through all pages
+    for page_num in range(len(doc)):
+        page = doc.load_page(page_num)
+        text += page.get_text("text")
+    
+    doc.close()
+    return text
+
+# Function to extract sections and sentences from the text
+def extract_sections_and_sentences(text):
+    # Regular expression to identify section headings (Assuming they're in ALL CAPS or followed by a number or bullet points)
+    section_pattern = re.compile(r'^[A-Z][A-Z0-9\s,.\-]+(?=\n)', re.MULTILINE)
+    
+    sections = section_pattern.findall(text)
+    sentences = re.split(r'(?<=[.!?]) +', text)  # Split the text into sentences
+    description_sentences = []
+    
+    for sentence in sentences:
+        # Check if sentence is part of a section (by looking at surrounding text)
+        for section in sections:
+            if section in sentence:
+                description_sentences.append((section.strip(), sentence.strip()))
+                break
+    
+    return description_sentences
+
+# Function to process multiple PDFs in a directory
+def process_pdfs_in_directory(directory_path):
+    extracted_data = []
+    
+    for filename in os.listdir(directory_path):
+        if filename.endswith(".pdf"):
+            pdf_path = os.path.join(directory_path, filename)
+            print(f"Processing file: {pdf_path}")
+            
+            # Extract text from the PDF
+            text = extract_text_from_pdf(pdf_path)
+            
+            # Extract sections and sentences from the text
+            extracted_sections = extract_sections_and_sentences(text)
+            
+            # Append the extracted sections and sentences with the source (filename)
+            for section, sentence in extracted_sections:
+                extracted_data.append({
+                    'source': filename,
+                    'section': section,
+                    'sentence': sentence
+                })
+    
+    return extracted_data
+
+# Directory path containing the PDF files
+pdf_directory = '/content/data'
+
+# Extract data from all PDFs in the directory
+extracted_info = process_pdfs_in_directory(pdf_directory)
+
+# Output the extracted information
+for entry in extracted_info:
+    print(f"Source: {entry['source']}\nSection: {entry['section']}\nSentence: {entry['sentence']}\n---\n")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Here’s the complete code for fine-tuning the GTE large embedding model and performing cosine similarity-based search using your dataset:
 
 ### 1. **Dataset Preparation and Sentence Pairing**

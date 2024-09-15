@@ -1,3 +1,488 @@
+pip install torch sentence-transformers scikit-learn cohere
+
+pip install chromadb
+
+pip install langchain PyPDF2 ray
+
+# Initialize ChromaDB client
+client = chromadb.Client()
+
+# Create or load a collection in ChromaDB
+collection_name = "knowledge_base"
+collection = client.get_or_create_collection(name=collection_name)
+
+
+# Initialize Sentence Embedding Model (GTE-Large or any Sentence Transformer model)
+embed_model = SentenceTransformer('thenlper/gte-large')
+
+# Sample knowledge base data: Replace this with your actual data
+knowledge_base = [
+    {"sentence": "What is the capital of France?", "domain": "Geography", "standard": "General Knowledge", "objective": "Capital City", "procedure": "Find Capital"},
+    {"sentence": "Describe photosynthesis.", "domain": "Biology", "standard": "Botany", "objective": "Plant Process", "procedure": "Explain Photosynthesis"},
+    {"sentence": "How does gravity work?", "domain": "Physics", "standard": "Classical Mechanics", "objective": "Fundamental Force", "procedure": "Explain Gravity"},
+]
+
+# Generate Embeddings and Store in ChromaDB
+for item in knowledge_base:
+    sentence = item["sentence"]
+
+    # Generate embedding for the sentence
+    embedding = embed_model.encode(sentence).tolist()
+
+    # Add embedding to ChromaDB along with metadata
+    collection.add(
+        ids=[str(uuid.uuid4())],
+        documents=[sentence],
+        embeddings=[embedding],
+        metadatas=[{
+            "domain": item["domain"],
+            "standard": item["standard"],
+            "objective": item["objective"],
+            "procedure": item["procedure"]
+        }]
+    )
+
+print("Data stored in ChromaDB.")
+
+
+
+
+
+
+
+
+
+
+import chromadb
+import torch
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+import uuid
+import json
+
+# Initialize ChromaDB client
+client = chromadb.Client()
+
+# Create or load a collection in ChromaDB
+collection_name = "knowledge_base"
+collection = client.get_or_create_collection(name=collection_name)
+
+# Initialize Sentence Embedding Model (GTE-Large or any Sentence Transformer model)
+embed_model = SentenceTransformer('thenlper/gte-large')
+
+# Read data from sentences_input.json
+try:
+    with open('/content/data/sentences_input.json', 'r') as file:
+        knowledge_base = json.load(file)
+except FileNotFoundError:
+    print("Error: sentences_input.json file not found.")
+    exit(1)
+except json.JSONDecodeError:
+    print("Error: Invalid JSON format in sentences_input.json.")
+    exit(1)
+
+# Generate Embeddings and Store in ChromaDB
+for item in knowledge_base["data"]["sentences"]:
+    sentence = item.get("sentence")
+
+    if not sentence:
+        print(f"Warning: Skipping item due to missing 'sentence' field: {item}")
+        continue
+
+    # Generate embedding for the sentence
+    embedding = embed_model.encode(sentence).tolist()
+
+    # Add embedding to ChromaDB along with metadata
+    collection.add(
+        ids=[str(uuid.uuid4())],
+        documents=[sentence],
+        embeddings=[embedding],
+        metadatas=[{
+            "domain": item.get("domain", ""),
+            "standard": item.get("standard", ""),
+            "objective": item.get("objective", ""),
+            "procedure": item.get("procedure", "")
+        }]
+    )
+
+print("Data stored in ChromaDB.")
+
+
+
+# Query the Knowledge Base with a new sentence
+query_sentence = "Coordinate the event logging function with other organizational entities requiring audit-related information to guide and inform the selection criteria for events to be logged?"
+
+# Generate embedding for the query
+query_embedding = embed_model.encode(query_sentence).reshape(1, -1)
+
+# Fetch all stored embeddings and metadata from ChromaDB
+results = collection.get(include=["embeddings", "metadatas","documents"])
+stored_embeddings = np.array(results['embeddings'])
+stored_metadata = results['metadatas']
+
+# Compute cosine similarity between query embedding and all stored sentence embeddings
+similarities = cosine_similarity(query_embedding, stored_embeddings)
+
+print(similarities)
+
+# Find the top 3 most similar sentences based on cosine similarity
+top_k = 3
+top_indices = np.argsort(similarities[0])[-top_k:][::-1]  # Sort in descending order
+
+#print(top_indices)
+print(results['documents'])
+print(stored_metadata)
+
+# Print top similar results with their associated metadata
+print("\nTop Similar Sentences:")
+for idx in top_indices:
+    print(f"Sentence: {results['documents'][idx]}")
+    print(f"Cosine Similarity: {similarities[0][idx]:.4f}")
+    print(f"Metadata: {stored_metadata[idx]}")
+    print()
+	
+	
+	
+import pandas as pd
+import chromadb
+from sentence_transformers import SentenceTransformer
+import uuid
+
+# Initialize ChromaDB client
+client = chromadb.Client()
+
+# Create or load a collection in ChromaDB
+collection_name = "knowledge_base"
+collection = client.get_or_create_collection(name=collection_name)
+
+# Initialize Sentence Embedding Model (GTE-Large or any Sentence Transformer model)
+embed_model = SentenceTransformer('thenlper/gte-large')
+
+# Read data from pandas DataFrame
+# Assuming the DataFrame is already loaded or created elsewhere
+# If not, you can load it like this:
+# df = pd.read_csv('your_data.csv')  # or any other method to load your data
+
+try:
+    # Ensure the DataFrame exists and has the required columns
+    if 'df' not in globals():
+        raise NameError("DataFrame 'df' is not defined")
+    
+    required_columns = ['sentence', 'domain', 'standard', 'objective', 'procedure']
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    if missing_columns:
+        raise ValueError(f"Missing required columns in DataFrame: {', '.join(missing_columns)}")
+
+    # Generate Embeddings and Store in ChromaDB
+    for _, item in df.iterrows():
+        sentence = item.get('sentence')
+
+        if pd.isna(sentence):
+            print(f"Warning: Skipping item due to missing 'sentence' field: {item}")
+            continue
+
+        # Generate embedding for the sentence
+        embedding = embed_model.encode(sentence).tolist()
+
+        # Add embedding to ChromaDB along with metadata
+        collection.add(
+            ids=[str(uuid.uuid4())],
+            documents=[sentence],
+            embeddings=[embedding],
+            metadatas=[{
+                "domain": item.get('domain', ''),
+                "standard": item.get('standard', ''),
+                "objective": item.get('objective', ''),
+                "procedure": item.get('procedure', '')
+            }]
+        )
+
+    print("Data stored in ChromaDB.")
+
+except NameError as e:
+    print(f"Error: {str(e)}")
+except ValueError as e:
+    print(f"Error: {str(e)}")
+except Exception as e:
+    print(f"An unexpected error occurred: {str(e)}")
+
+
+	
+
+
+import uuid
+import chromadb
+from sentence_transformers import SentenceTransformer
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from pathlib import Path
+import ray
+import ray.data
+import shutil
+from PyPDF2 import PdfReader
+
+# Initialize the Sentence Embedding Model (GTE-Large)
+embed_model = SentenceTransformer('thenlper/gte-large')
+
+# Initialize ChromaDB client and load the knowledge base
+client = chromadb.Client()
+collection_name = "knowledge_base"
+collection = client.get_collection(name=collection_name)  # Assume the collection is already created
+
+# PDF reading and chunking
+#DATA_DIR = Path("/content/data")
+#shutil.copytree(Path("./"), DATA_DIR, dirs_exist_ok=True)
+
+pdf_path = Path("/content/data/CELEX_32019R0881_EN_TXT.pdf")  # Path to your PDF file
+
+# Read the PDF using PyPDF2
+reader = PdfReader(str(pdf_path))
+pdf_text = ""
+for page in reader.pages:
+    pdf_text += page.extract_text()
+
+# Chunk the text using RecursiveCharacterTextSplitter
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1000,  # Adjust chunk size if needed
+    chunk_overlap=50   # Small overlap between chunks for context
+)
+
+chunks = splitter.split_text(pdf_text)
+
+# We'll use the first 100 chunks for embeddings and queries
+query_chunks = chunks[:50]
+
+# Generate embeddings for the chunks
+query_embeddings = [embed_model.encode(chunk).tolist() for chunk in query_chunks]
+
+# Query the knowledge base using the embeddings
+def query_knowledge_base(embeddings):
+    results = collection.query(
+        query_embeddings=embeddings,  # Query embeddings
+        n_results=3,  # Number of similar results to return per embedding
+        include=["metadatas", "documents", "distances"]
+    )
+
+    mappings = []
+
+    # Calculate similarity and prepare mappings
+    for i, result in enumerate(results['documents']):
+        for j, document in enumerate(result):
+            metadata = results['metadatas'][i][j]
+            distance = results['distances'][i][j]
+            similarity = 1 - distance  # Convert distance to similarity
+
+            mappings.append({
+                "query_chunk": query_chunks[i],  # Original chunk that was queried
+                "matched_sentence": document,
+                "domain": metadata["domain"],
+                "standard": metadata["standard"],
+                "objective": metadata["objective"],
+                "procedure": metadata["procedure"],
+                "similarity": similarity
+            })
+
+    return mappings
+
+# Perform the query on the first 100 embeddings
+results = query_knowledge_base(query_embeddings)
+
+# Display the results (for first 5 query mappings)
+for mapping in results[:5]:
+    print(f"Query Chunk: {mapping['query_chunk'][:100]}...")  # Truncate to show first 100 chars
+    print(f"Matched Sentence: {mapping['matched_sentence']}")
+    print(f"Domain: {mapping['domain']}, Standard: {mapping['standard']}")
+    print(f"Objective: {mapping['objective']}, Procedure: {mapping['procedure']}")
+    print(f"Similarity: {mapping['similarity']:.4f}")
+    print()
+
+
+
+import uuid
+import chromadb
+from sentence_transformers import SentenceTransformer
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from pathlib import Path
+import shutil
+from PyPDF2 import PdfReader
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Initialize the Sentence Embedding Model (GTE-Large)
+embed_model = SentenceTransformer('thenlper/gte-large')
+
+# Initialize ChromaDB client and load the knowledge base
+client = chromadb.Client()
+collection_name = "knowledge_base"
+collection = client.get_collection(name=collection_name)  # Assume the collection is already created
+
+# PDF reading and chunking
+#DATA_DIR = Path("/content/data")
+#shutil.copytree(Path("./"), DATA_DIR, dirs_exist_ok=True)
+
+pdf_path = Path("/content/data/CELEX_32019R0881_EN_TXT.pdf")  # Path to your PDF file
+
+# Read the PDF using PyPDF2
+reader = PdfReader(str(pdf_path))
+pdf_text = ""
+for page in reader.pages:
+    pdf_text += page.extract_text()
+
+# Chunk the text using RecursiveCharacterTextSplitter
+splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1000,  # Adjust chunk size if needed
+    chunk_overlap=50   # Small overlap between chunks for context
+)
+
+chunks = splitter.split_text(pdf_text)
+
+# We'll use the first 100 chunks for embeddings and queries
+query_chunks = chunks[:100]
+
+# Generate embeddings for the chunks
+query_embeddings = [embed_model.encode(chunk).tolist() for chunk in query_chunks]
+
+# Convert query_embeddings to a numpy array for cosine similarity calculation
+query_embeddings_np = np.array(query_embeddings)
+
+# Function to query the knowledge base and use cosine similarity
+def query_knowledge_base(query_embeddings_np):
+    # Retrieve all stored embeddings and metadata from ChromaDB
+    stored_data = collection.get(include=["embeddings", "metadatas", "documents"])
+
+    stored_embeddings = np.array(stored_data['embeddings'])  # Extract stored embeddings
+    stored_metadatas = stored_data['metadatas']  # Extract metadata
+    stored_documents = stored_data['documents']  # Extract stored documents
+
+    # Compute cosine similarity between query embeddings and stored embeddings
+    cosine_sim_matrix = cosine_similarity(query_embeddings_np, stored_embeddings)
+
+    mappings = []
+
+    # Process each query embedding and its cosine similarities to stored embeddings
+    for i, query_chunk in enumerate(query_chunks):
+        # Get the top 3 most similar stored embeddings
+        top_indices = np.argsort(cosine_sim_matrix[i])[::-1][:3]  # Sort in descending order
+
+        for idx in top_indices:
+            similarity = cosine_sim_matrix[i][idx]
+            metadata = stored_metadatas[idx]
+
+            mappings.append({
+                "query_chunk": query_chunk,  # Original chunk that was queried
+                "matched_sentence": stored_documents[idx],
+                "domain": metadata["domain"],
+                "standard": metadata["standard"],
+                "objective": metadata["objective"],
+                "procedure": metadata["procedure"],
+                "similarity": similarity
+            })
+
+    return mappings
+
+# Perform the query on the first 100 embeddings
+results = query_knowledge_base(query_embeddings_np)
+
+# Display the results (for first 5 query mappings)
+for mapping in results[:5]:
+    print(f"Query Chunk: {mapping['query_chunk'][:100]}...")  # Truncate to show first 100 chars
+    print(f"Matched Sentence: {mapping['matched_sentence']}")
+    print(f"Domain: {mapping['domain']}, Standard: {mapping['standard']}")
+    print(f"Objective: {mapping['objective']}, Procedure: {mapping['procedure']}")
+    print(f"Similarity: {mapping['similarity']:.4f}")
+    print()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 pip install torch sentence-transformers scikit-learn cohere ray
 pip install chromadb,pyPDF2
 

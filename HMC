@@ -1,3 +1,215 @@
+import torch
+import torch.nn as nn
+from torch.optim import AdamW
+from torch.utils.data import DataLoader, TensorDataset
+from transformers import AutoTokenizer, AutoModel, get_linear_schedule_with_warmup
+from peft import LoraConfig, get_peft_model
+import bitsandbytes as bnb
+from sklearn.preprocessing import MultiLabelBinarizer
+import time
+from torch.cuda.amp import autocast, GradScaler
+from sklearn.metrics import accuracy_score
+
+# Tokenization and Preprocessing
+def tokenize_sentences(sentences, tokenizer, max_len=256):
+    print("Tokenizing sentences...")
+    start_time = time.time()
+    inputs = [tokenizer(sentence, padding='max_length', truncation=True, max_length=max_len, return_tensors="pt") for sentence in sentences]
+    input_ids = torch.cat([input['input_ids'] for input in inputs], dim=0)
+    print(f"Tokenization completed in {time.time() - start_time:.2f} seconds.")
+    return input_ids
+
+# Data Preparation
+def prepare_data(sentences, labels_procedures, tokenizer):
+    input_ids = tokenize_sentences(sentences, tokenizer)
+    train_dataset = TensorDataset(input_ids, labels_procedures)
+    return train_dataset
+
+# Custom Model with Multi-Label Classification Head
+class MistralMultiLabelClassifier(nn.Module):
+    def __init__(self, num_labels):
+        super(MistralMultiLabelClassifier, self).__init__()
+        self.mistral = AutoModel.from_pretrained(
+            "mistralai/Mistral-7B",
+            load_in_8bit=True,  # Quantize with bitsandbytes
+            device_map='auto',
+            quantization_config=bnb.QuantizationConfig(load_in_8bit=True)
+        )
+        self.classifier = nn.Linear(self.mistral.config.hidden_size, num_labels)  # Custom linear layer for multi-label classification
+
+    def forward(self, input_ids):
+        outputs = self.mistral(input_ids=input_ids)
+        pooled_output = outputs.pooler_output  # Use the pooled output from the model
+        logits = self.classifier(pooled_output)
+        return logits
+
+# Function to train and evaluate the model
+def run_experiment(hyperparams, train_loader, val_loader, num_labels):
+    print(f"Starting experiment with hyperparameters: {hyperparams}")
+    start_time = time.time()
+    
+    # Model setup
+    model = MistralMultiLabelClassifier(num_labels=num_labels)
+    
+    # Apply LoRA configuration
+    lora_config = LoraConfig(
+        r=hyperparams['lora_rank'],  
+        lora_alpha=16,
+        target_modules=["query", "key", "value"],
+        lora_dropout=hyperparams['lora_dropout'],
+        bias="none"
+    )
+    model = get_peft_model(model, lora_config)
+    
+    optimizer = AdamW(model.parameters(), lr=hyperparams['learning_rate'])
+    num_training_steps = len(train_loader) * hyperparams['epochs']
+    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=0, num_training_steps=num_training_steps)
+    loss_fn = nn.BCEWithLogitsLoss()
+    scaler = GradScaler()
+    
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model.to(device)
+
+    # Training Loop
+    model.train()
+    total_train_time = 0
+    total_loss = 0
+    for epoch in range(hyperparams['epochs']):
+        print(f"Starting Epoch {epoch + 1}/{hyperparams['epochs']}...")
+        epoch_start_time = time.time()
+        total_epoch_loss = 0
+        for batch_idx, batch in enumerate(train_loader):
+            batch_input_ids, batch_labels = [x.to(device) for x in batch]
+
+            optimizer.zero_grad()
+
+            # Mixed precision forward pass
+            with autocast():
+                logits = model(batch_input_ids)
+                loss = loss_fn(logits, batch_labels)
+
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+            scheduler.step()
+
+            total_epoch_loss += loss.item()
+        
+        avg_epoch_loss = total_epoch_loss / len(train_loader)
+        total_loss += avg_epoch_loss
+        epoch_duration = time.time() - epoch_start_time
+        total_train_time += epoch_duration
+        print(f"Epoch {epoch+1}/{hyperparams['epochs']} completed in {epoch_duration:.2f} seconds. Average Loss: {avg_epoch_loss:.4f}")
+    
+    avg_loss = total_loss / hyperparams['epochs']
+    print(f"Training completed in {total_train_time:.2f} seconds. Average Loss across all epochs: {avg_loss:.4f}")
+
+    # Evaluate the model
+    model.eval()
+    total_eval_loss = 0
+    true_labels = []
+    predictions = []
+    with torch.no_grad():
+        for batch in val_loader:
+            batch_input_ids, batch_labels = [x.to(device) for x in batch]
+            with autocast():
+                logits = model(batch_input_ids)
+            loss = loss_fn(logits, batch_labels)
+            total_eval_loss += loss.item()
+
+            # Sigmoid and threshold for predictions
+            probs = torch.sigmoid(logits)
+            preds = (probs > 0.5).float().cpu().numpy()
+            predictions.extend(preds)
+            true_labels.extend(batch_labels.cpu().numpy())
+
+    avg_eval_loss = total_eval_loss / len(val_loader)
+    accuracy = accuracy_score(true_labels, predictions)
+    print(f"Evaluation Loss: {avg_eval_loss:.4f}, Accuracy: {accuracy:.4f}")
+    print(f"Experiment completed in {time.time() - start_time:.2f} seconds.\n")
+    return avg_loss, avg_eval_loss, accuracy
+
+# Hyperparameter sets
+experiments = [
+    {'learning_rate': 3e-4, 'batch_size': 8, 'lora_rank': 8, 'epochs': 3, 'lora_dropout': 0.1},
+    {'learning_rate': 1e-4, 'batch_size': 8, 'lora_rank': 8, 'epochs': 5, 'lora_dropout': 0.1},
+    {'learning_rate': 3e-4, 'batch_size': 16, 'lora_rank': 16, 'epochs': 3, 'lora_dropout': 0.1},
+    {'learning_rate': 3e-4, 'batch_size': 8, 'lora_rank': 8, 'epochs': 3, 'lora_dropout': 0.3},
+    {'learning_rate': 5e-4, 'batch_size': 8, 'lora_rank': 8, 'epochs': 3, 'lora_dropout': 0.1}
+]
+
+# Example data
+sentences = filtered_df['extended_text'].tolist()
+labels_procedures = filtered_df['procedure'].tolist()
+labels_procedures = [eval(label) if isinstance(label, str) else label for label in labels_procedures]
+mlb = MultiLabelBinarizer()
+encoded_labels = mlb.fit_transform(labels_procedures)
+labels_procedures = torch.tensor(encoded_labels, dtype=torch.float32)
+
+# Initialize tokenizer
+tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B")
+
+# Tokenize sentences
+train_dataset = prepare_data(sentences, labels_procedures, tokenizer)
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4, pin_memory=True)
+
+# Validation dataset (you should split part of your data for validation)
+val_loader = DataLoader(train_dataset, batch_size=32, shuffle=False, num_workers=4, pin_memory=True)
+
+# Run experiments
+results = []
+for hyperparams in experiments:
+    result = run_experiment(hyperparams, train_loader, val_loader, num_labels=len(mlb.classes_))
+    results.append((hyperparams, result))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 pip install torch sentence-transformers scikit-learn cohere
 
 

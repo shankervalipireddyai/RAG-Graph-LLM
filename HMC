@@ -1,4 +1,196 @@
 import torch
+import torch.nn as nn
+from transformers import RobertaTokenizer, RobertaModel, AdamW, Trainer, TrainingArguments
+from torch.utils.data import DataLoader, TensorDataset
+from sklearn.preprocessing import LabelBinarizer
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, confusion_matrix
+import numpy as np
+import optuna
+from transformers import RobertaForSequenceClassification
+from transformers.trainer_utils import EvalPrediction
+
+# Assuming 'filtered_df' contains the sentence and procedure columns
+sentences = filtered_df['sentence'].tolist()  # List of sentences
+procedures = filtered_df['procedure'].tolist()  # List of single procedures
+
+# LabelBinarizer to one-hot encode the procedure labels
+lb = LabelBinarizer()
+encoded_labels = lb.fit_transform(procedures)
+
+# Tokenizer
+tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+
+def tokenize_sentences(sentences, tokenizer, max_len=512):
+    inputs = tokenizer(sentences, padding=True, truncation=True, max_length=max_len, return_tensors="pt")
+    return inputs['input_ids'], inputs['attention_mask']
+
+# Tokenize the input sentences
+input_ids, attention_mask = tokenize_sentences(sentences, tokenizer)
+
+# Convert labels to tensor
+labels_procedures = torch.tensor(encoded_labels, dtype=torch.float32)
+
+# Dataset and DataLoader
+train_dataset = TensorDataset(input_ids, attention_mask, labels_procedures)
+
+# Define the Model
+class RobertaSingleLabelClassifier(nn.Module):
+    def __init__(self, num_labels):
+        super(RobertaSingleLabelClassifier, self).__init__()
+        self.roberta = RobertaModel.from_pretrained('roberta-base')
+        self.classifier = nn.Linear(self.roberta.config.hidden_size, num_labels)
+    
+    def forward(self, input_ids, attention_mask=None, labels=None):
+        outputs = self.roberta(input_ids=input_ids, attention_mask=attention_mask)
+        pooled_output = outputs.pooler_output  # Get the pooled output
+        logits = self.classifier(pooled_output)
+        
+        if labels is not None:
+            loss_fn = nn.BCEWithLogitsLoss()
+            loss = loss_fn(logits, labels)
+            return loss, logits
+        return logits
+
+# Initialize the model
+num_procedures = len(lb.classes_)
+model = RobertaSingleLabelClassifier(num_labels=num_procedures)
+
+# Define training arguments
+training_args = TrainingArguments(
+    output_dir='./results',
+    evaluation_strategy="epoch",
+    per_device_train_batch_size=16,
+    per_device_eval_batch_size=16,
+    num_train_epochs=3,  # You can adjust this based on your needs
+    save_total_limit=2,
+    logging_dir='./logs',
+    logging_steps=10,
+    load_best_model_at_end=True,
+)
+
+# Compute metrics for evaluation
+def compute_metrics(p: EvalPrediction):
+    preds = np.argmax(p.predictions, axis=1)
+    true_labels = np.argmax(p.label_ids, axis=1)
+
+    accuracy = accuracy_score(true_labels, preds)
+    f1 = f1_score(true_labels, preds, average='weighted')
+    precision = precision_score(true_labels, preds, average='weighted')
+    recall = recall_score(true_labels, preds, average='weighted')
+
+    return {
+        'accuracy': accuracy,
+        'f1': f1,
+        'precision': precision,
+        'recall': recall,
+        'confusion_matrix': confusion_matrix(true_labels, preds)
+    }
+
+# Prepare data for Trainer
+train_data = TensorDataset(input_ids, attention_mask, labels_procedures)
+
+train_loader = DataLoader(train_data, batch_size=16, shuffle=True)
+
+# Initialize Trainer
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_data,
+    eval_dataset=train_data,  # Here we use the train data for simplicity, use separate val set in real use
+    compute_metrics=compute_metrics,
+)
+
+# Run training
+trainer.train()
+
+# Predict function
+def predict(model, sentence):
+    model.eval()
+    tokens = tokenizer(sentence, return_tensors="pt", padding='max_length', truncation=True, max_length=512)
+    input_ids = tokens['input_ids'].to('cuda')
+
+    with torch.no_grad():
+        logits = model(input_ids)
+
+    # Apply sigmoid to get probabilities
+    procedure_probs = torch.sigmoid(logits).squeeze().cpu().numpy()
+
+    # Convert probabilities to binary predictions (threshold can be adjusted)
+    procedure_preds = procedure_probs > 0.5
+
+    # Map binary predictions to class names
+    procedures = lb.inverse_transform([procedure_preds])[0]
+
+    return {
+        "sentence": sentence,
+        "procedures": list(procedures)
+    }
+
+# Example usage
+example_sentence = "Implement network access control."
+prediction = predict(model, example_sentence)
+print(prediction)
+
+# Optuna hyperparameter optimization (optional)
+def objective(trial):
+    lr = trial.suggest_loguniform('learning_rate', 1e-5, 1e-3)
+
+    model = RobertaSingleLabelClassifier(num_labels=num_procedures)
+
+    training_args = TrainingArguments(
+        output_dir='./results',
+        evaluation_strategy="epoch",
+        per_device_train_batch_size=16,
+        per_device_eval_batch_size=16,
+        num_train_epochs=3,
+        learning_rate=lr,
+        save_total_limit=2,
+        logging_dir='./logs',
+        logging_steps=10,
+        load_best_model_at_end=True,
+    )
+
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_data,
+        eval_dataset=train_data,
+        compute_metrics=compute_metrics,
+    )
+
+    result = trainer.train()
+    eval_result = trainer.evaluate()
+    
+    return eval_result['eval_loss']
+
+# Optuna study
+study = optuna.create_study(direction="minimize")
+study.optimize(objective, n_trials=5)  # You can set n_trials to the number you want
+
+best_trial = study.best_trial
+print(f"Best trial: {best_trial.params}")
+
+# Save the best model
+model.save_pretrained('./best_model')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import torch
 import numpy as np
 import pandas as pd
 from datasets import Dataset

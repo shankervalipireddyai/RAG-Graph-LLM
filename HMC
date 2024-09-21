@@ -1,4 +1,155 @@
 import torch
+from transformers import RobertaTokenizer, RobertaForSequenceClassification, Trainer, TrainingArguments
+from sklearn.preprocessing import MultiLabelBinarizer
+from datasets import Dataset
+from sklearn.metrics import f1_score, precision_score, recall_score
+import optuna
+
+# Define dataset
+def load_data(filtered_df):
+    sentences = filtered_df['extended_text'].tolist()
+    labels_procedures = filtered_df['procedure'].tolist()
+
+    # Convert lists of strings to list of lists
+    labels_procedures = [eval(label) if isinstance(label, str) else label for label in labels_procedures]
+
+    # MultiLabelBinarizer to one-hot encode the procedure labels
+    mlb = MultiLabelBinarizer()
+    encoded_labels = mlb.fit_transform(labels_procedures)
+
+    # Create a dataset for transformers
+    data = {'sentence': sentences, 'labels': encoded_labels.tolist()}
+    dataset = Dataset.from_dict(data)
+
+    return dataset, mlb
+
+# Define the metric function
+def compute_metrics(eval_pred):
+    logits, labels = eval_pred
+    predictions = (logits > 0.5).astype(int)
+    precision = precision_score(labels, predictions, average='micro')
+    recall = recall_score(labels, predictions, average='micro')
+    f1 = f1_score(labels, predictions, average='micro')
+    return {"precision": precision, "recall": recall, "f1": f1}
+
+# Define the model init function for the Trainer
+def model_init():
+    return RobertaForSequenceClassification.from_pretrained('roberta-base', num_labels=num_procedures)
+
+# Tokenizer and padding function
+tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+
+def tokenize_function(examples):
+    return tokenizer(examples['sentence'], padding='max_length', truncation=True, max_length=512)
+
+# Load and tokenize the dataset
+filtered_df = # Your filtered DataFrame here
+dataset, mlb = load_data(filtered_df)
+tokenized_dataset = dataset.map(tokenize_function, batched=True)
+
+# Split into train and validation
+train_test_split = tokenized_dataset.train_test_split(test_size=0.1)
+train_dataset = train_test_split['train']
+eval_dataset = train_test_split['test']
+
+# Define hyperparameter search space
+def hp_space(trial):
+    return {
+        "learning_rate": trial.suggest_float("learning_rate", 1e-5, 5e-5, log=True),
+        "num_train_epochs": trial.suggest_int("num_train_epochs", 3, 10),
+        "per_device_train_batch_size": trial.suggest_categorical("per_device_train_batch_size", [8, 16, 32]),
+        "weight_decay": trial.suggest_float("weight_decay", 0.01, 0.1, log=True),
+    }
+
+# Define the objective function for optuna
+def objective(trial):
+    # Define training arguments
+    training_args = TrainingArguments(
+        output_dir='./results',
+        evaluation_strategy='epoch',
+        save_strategy="epoch",
+        learning_rate=trial.suggest_float("learning_rate", 1e-5, 5e-5, log=True),
+        num_train_epochs=trial.suggest_int("num_train_epochs", 3, 10),
+        per_device_train_batch_size=trial.suggest_categorical("per_device_train_batch_size", [8, 16, 32]),
+        weight_decay=trial.suggest_float("weight_decay", 0.01, 0.1, log=True),
+        logging_dir='./logs',
+        logging_steps=10,
+        metric_for_best_model="f1",
+        load_best_model_at_end=True,
+    )
+
+    # Initialize Trainer
+    trainer = Trainer(
+        model_init=model_init,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        tokenizer=tokenizer,
+        compute_metrics=compute_metrics
+    )
+
+    # Train the model
+    trainer.train()
+
+    # Evaluate on validation set
+    eval_result = trainer.evaluate(eval_dataset=eval_dataset)
+    return eval_result['eval_f1']
+
+# Optuna hyperparameter search
+study = optuna.create_study(direction='maximize')
+study.optimize(objective, n_trials=20)
+
+# Best hyperparameters
+print("Best hyperparameters:", study.best_params)
+
+# Train with the best hyperparameters
+best_trial = study.best_trial
+training_args = TrainingArguments(
+    output_dir='./results',
+    evaluation_strategy='epoch',
+    save_strategy="epoch",
+    learning_rate=best_trial.params['learning_rate'],
+    num_train_epochs=best_trial.params['num_train_epochs'],
+    per_device_train_batch_size=best_trial.params['per_device_train_batch_size'],
+    weight_decay=best_trial.params['weight_decay'],
+    logging_dir='./logs',
+    logging_steps=10,
+    metric_for_best_model="f1",
+    load_best_model_at_end=True,
+)
+
+# Initialize final Trainer
+trainer = Trainer(
+    model_init=model_init,
+    args=training_args,
+    train_dataset=train_dataset,
+    eval_dataset=eval_dataset,
+    tokenizer=tokenizer,
+    compute_metrics=compute_metrics
+)
+
+# Final training with the best hyperparameters
+trainer.train()
+
+# Evaluate final model
+final_eval = trainer.evaluate(eval_dataset=eval_dataset)
+print(f"Final evaluation: {final_eval}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import torch
 import numpy as np
 from datasets import Dataset
 from sklearn.preprocessing import MultiLabelBinarizer

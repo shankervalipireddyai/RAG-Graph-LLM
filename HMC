@@ -1,3 +1,177 @@
+import torch
+import numpy as np
+from datasets import Dataset
+from sklearn.preprocessing import MultiLabelBinarizer
+from sklearn.metrics import f1_score, precision_score, recall_score, confusion_matrix
+from transformers import RobertaTokenizer, RobertaForSequenceClassification, Trainer, TrainingArguments
+import torch.nn as nn
+
+# Assuming 'filtered_df' contains the sentence and procedure columns
+sentences = filtered_df['extended_text'].tolist()
+labels_procedures = filtered_df['procedure'].tolist()
+
+# Convert lists of strings to list of lists (if it's a string representation of lists, use eval)
+labels_procedures = [eval(label) if isinstance(label, str) else label for label in labels_procedures]
+
+# MultiLabelBinarizer to one-hot encode the procedure labels
+mlb = MultiLabelBinarizer()
+encoded_labels = mlb.fit_transform(labels_procedures)
+
+# Tokenizer
+tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+
+# Tokenize sentences
+def tokenize_sentences(examples):
+    return tokenizer(examples['sentence'], padding='max_length', truncation=True, max_length=512)
+
+# Convert to HuggingFace Dataset
+dataset = Dataset.from_dict({"sentence": sentences, "labels": list(encoded_labels)})
+
+# Tokenize dataset
+tokenized_dataset = dataset.map(tokenize_sentences, batched=True)
+tokenized_dataset.set_format(type='torch', columns=['input_ids', 'attention_mask', 'labels'])
+
+# Split dataset into train and validation (80/20 split)
+train_test_split = tokenized_dataset.train_test_split(test_size=0.2)
+train_dataset = train_test_split['train']
+val_dataset = train_test_split['test']
+
+# Custom Trainer Class with BCEWithLogitsLoss
+class CustomTrainer(Trainer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.loss_fn = nn.BCEWithLogitsLoss()  # Binary Cross Entropy with Logits Loss
+
+    # Override compute_loss to include BCEWithLogitsLoss for multi-label classification
+    def compute_loss(self, model, inputs, return_outputs=False):
+        labels = inputs.pop('labels')  # Labels
+        outputs = model(**inputs)      # Forward pass to get logits
+        logits = outputs.logits
+
+        # Compute loss using BCEWithLogitsLoss
+        loss = self.loss_fn(logits, labels.float())
+
+        return (loss, outputs) if return_outputs else loss
+
+# Model definition: Use RobertaForSequenceClassification for multi-label classification
+num_labels = len(mlb.classes_)
+model = RobertaForSequenceClassification.from_pretrained('roberta-base', num_labels=num_labels)
+
+# Custom metrics for evaluation
+def compute_metrics(pred):
+    labels = pred.label_ids
+    preds = pred.predictions
+    
+    # Convert logits to probabilities and apply threshold
+    preds = torch.sigmoid(torch.tensor(preds)).numpy()
+    preds = (preds > 0.5).astype(int)
+
+    # Calculate F1 Score, Precision, Recall
+    f1 = f1_score(labels, preds, average='micro')
+    precision = precision_score(labels, preds, average='micro')
+    recall = recall_score(labels, preds, average='micro')
+    
+    # Confusion matrix (optional for multi-label classification)
+    conf_matrix = confusion_matrix(labels.argmax(axis=1), preds.argmax(axis=1))
+    
+    return {
+        'f1': f1,
+        'precision': precision,
+        'recall': recall,
+        'confusion_matrix': conf_matrix
+    }
+
+# Define Training Arguments
+training_args = TrainingArguments(
+    output_dir='./results',          # Output directory
+    num_train_epochs=5,              # Number of training epochs
+    per_device_train_batch_size=16,  # Batch size for training
+    per_device_eval_batch_size=16,   # Batch size for evaluation
+    warmup_steps=500,                # Number of warmup steps for learning rate scheduler
+    weight_decay=0.01,               # Strength of weight decay
+    logging_dir='./logs',            # Directory for storing logs
+    evaluation_strategy="epoch",     # Evaluate after every epoch
+    save_strategy="epoch",           # Save model after each epoch
+    load_best_model_at_end=True,     # Load best model at the end of training
+    metric_for_best_model="f1",      # Metric to use to select the best model
+    logging_steps=10,                # Log every 10 steps
+)
+
+# Initialize the CustomTrainer object with BCEWithLogitsLoss
+trainer = CustomTrainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_dataset,
+    eval_dataset=val_dataset,
+    tokenizer=tokenizer,
+    compute_metrics=compute_metrics  # Custom metrics function for evaluation
+)
+
+# Train the model
+trainer.train()
+
+# Evaluate the model on the validation dataset
+eval_results = trainer.evaluate()
+
+print(f"Evaluation Results: {eval_results}")
+
+# Example prediction function
+def predict(sentence):
+    inputs = tokenizer(sentence, return_tensors="pt", padding='max_length', truncation=True, max_length=512)
+    inputs = {key: value.to(trainer.model.device) for key, value in inputs.items()}
+
+    with torch.no_grad():
+        logits = model(**inputs).logits
+
+    # Apply sigmoid to get probabilities
+    probs = torch.sigmoid(logits).cpu().numpy()
+
+    # Convert probabilities to binary predictions
+    preds = (probs > 0.5).astype(int)
+
+    # Map binary predictions to class names
+    procedures = mlb.inverse_transform(preds)[0]
+
+    return {
+        "sentence": sentence,
+        "predicted_procedures": list(procedures)
+    }
+
+# Example usage
+example_sentence = "Implement network access control."
+prediction = predict(example_sentence)
+print(prediction)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #comet ML
 
 

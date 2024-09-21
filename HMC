@@ -1,4 +1,280 @@
 import torch
+import numpy as np
+import pandas as pd
+from datasets import Dataset
+from sklearn.preprocessing import MultiLabelBinarizer
+from sklearn.metrics import f1_score, precision_score, recall_score
+from transformers import (
+    RobertaTokenizer,
+    RobertaForSequenceClassification,
+    Trainer,
+    TrainingArguments
+)
+import torch.nn as nn
+import optuna
+from optuna.integration import PyTorchLightningPruningCallback
+from optuna.trial import TrialState
+
+# Load your dataset
+# Assuming 'filtered_df' is your DataFrame containing 'extended_text' and 'procedure' columns
+filtered_df = pd.read_csv('your_dataset.csv')  # Replace with your dataset path
+
+# Data Preparation
+sentences = filtered_df['extended_text'].tolist()
+labels_procedures = filtered_df['procedure'].tolist()
+
+# Convert labels to list of lists
+labels_procedures = [eval(label) if isinstance(label, str) else label for label in labels_procedures]
+
+# Encode labels using MultiLabelBinarizer
+mlb = MultiLabelBinarizer()
+encoded_labels = mlb.fit_transform(labels_procedures)
+
+# Define number of labels
+num_labels = len(mlb.classes_)
+print(f"Number of unique procedures (num_labels): {num_labels}")
+
+# Initialize tokenizer
+tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+
+# Tokenization function
+def tokenize_sentences(examples):
+    return tokenizer(
+        examples['sentence'],
+        padding='max_length',
+        truncation=True,
+        max_length=512
+    )
+
+# Create HuggingFace Dataset
+dataset = Dataset.from_dict({"sentence": sentences, "labels": list(encoded_labels)})
+
+# Tokenize dataset
+tokenized_dataset = dataset.map(tokenize_sentences, batched=True)
+tokenized_dataset.set_format(type='torch', columns=['input_ids', 'attention_mask', 'labels'])
+
+# Split dataset into train and validation sets
+train_test_split = tokenized_dataset.train_test_split(test_size=0.2)
+train_dataset = train_test_split['train']
+val_dataset = train_test_split['test']
+
+# Custom Trainer Class with BCEWithLogitsLoss
+class CustomTrainer(Trainer):
+    def __init__(self, loss_fn, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.loss_fn = loss_fn  # Loss function passed during initialization
+
+    def compute_loss(self, model, inputs, return_outputs=False):
+        labels = inputs.pop('labels')
+        outputs = model(**inputs)
+        logits = outputs.logits
+
+        # Compute loss using BCEWithLogitsLoss
+        loss = self.loss_fn(logits, labels.float())
+
+        return (loss, outputs) if return_outputs else loss
+
+# Evaluation Metrics Function
+def compute_metrics(pred):
+    labels = pred.label_ids
+    preds = pred.predictions
+
+    # Apply sigmoid to logits to get probabilities
+    preds = torch.sigmoid(torch.tensor(preds)).numpy()
+    preds = (preds > 0.5).astype(int)
+
+    # Calculate metrics
+    f1 = f1_score(labels, preds, average='micro')
+    precision = precision_score(labels, preds, average='micro')
+    recall = recall_score(labels, preds, average='micro')
+
+    return {
+        'f1': f1,
+        'precision': precision,
+        'recall': recall
+    }
+
+# Optuna Objective Function
+def objective(trial):
+    # Hyperparameter space
+    learning_rate = trial.suggest_loguniform('learning_rate', 1e-6, 1e-4)
+    batch_size = trial.suggest_categorical('batch_size', [8, 16, 32])
+    num_train_epochs = trial.suggest_int('num_train_epochs', 2, 5)
+    weight_decay = trial.suggest_loguniform('weight_decay', 1e-6, 1e-2)
+    warmup_steps = trial.suggest_int('warmup_steps', 0, 500)
+
+    # Define the model
+    model = RobertaForSequenceClassification.from_pretrained('roberta-base', num_labels=num_labels)
+
+    # Define the loss function
+    loss_fn = nn.BCEWithLogitsLoss()
+
+    # Training arguments
+    training_args = TrainingArguments(
+        output_dir='./results',
+        num_train_epochs=num_train_epochs,
+        per_device_train_batch_size=batch_size,
+        per_device_eval_batch_size=batch_size,
+        warmup_steps=warmup_steps,
+        learning_rate=learning_rate,
+        weight_decay=weight_decay,
+        logging_dir='./logs',
+        evaluation_strategy="epoch",
+        save_strategy="no",
+        disable_tqdm=True,
+        logging_steps=50,
+    )
+
+    # Initialize custom trainer
+    trainer = CustomTrainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=val_dataset,
+        tokenizer=tokenizer,
+        compute_metrics=compute_metrics,
+        loss_fn=loss_fn,
+    )
+
+    # Train the model
+    trainer.train()
+
+    # Evaluate the model
+    eval_results = trainer.evaluate()
+
+    # Set the objective to maximize F1 score
+    f1 = eval_results['eval_f1']
+    trial.report(f1, step=0)
+
+    # Handle pruning (optional)
+    if trial.should_prune():
+        raise optuna.exceptions.TrialPruned()
+
+    return f1
+
+# Create an Optuna study
+study = optuna.create_study(direction='maximize')
+study.optimize(objective, n_trials=10)
+
+# Best trial
+print("Best trial:")
+trial = study.best_trial
+
+print(f"  F1 Score: {trial.value}")
+print("  Params:")
+for key, value in trial.params.items():
+    print(f"    {key}: {value}")
+
+# Train the final model with the best hyperparameters
+best_params = trial.params
+
+# Define the model
+model = RobertaForSequenceClassification.from_pretrained('roberta-base', num_labels=num_labels)
+
+# Define the loss function
+loss_fn = nn.BCEWithLogitsLoss()
+
+# Training arguments with best hyperparameters
+training_args = TrainingArguments(
+    output_dir='./best_model',
+    num_train_epochs=best_params['num_train_epochs'],
+    per_device_train_batch_size=best_params['batch_size'],
+    per_device_eval_batch_size=best_params['batch_size'],
+    warmup_steps=best_params['warmup_steps'],
+    learning_rate=best_params['learning_rate'],
+    weight_decay=best_params['weight_decay'],
+    logging_dir='./logs',
+    evaluation_strategy="epoch",
+    save_strategy="epoch",
+    load_best_model_at_end=True,
+    metric_for_best_model="f1",
+    logging_steps=50,
+)
+
+# Initialize custom trainer with best hyperparameters
+trainer = CustomTrainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_dataset,
+    eval_dataset=val_dataset,
+    tokenizer=tokenizer,
+    compute_metrics=compute_metrics,
+    loss_fn=loss_fn,
+)
+
+# Train the final model
+trainer.train()
+
+# Save the best model
+trainer.save_model('./best_model')
+
+# Example prediction function
+def predict(sentence):
+    inputs = tokenizer(
+        sentence,
+        return_tensors="pt",
+        padding='max_length',
+        truncation=True,
+        max_length=512
+    )
+    inputs = {key: value.to(trainer.model.device) for key, value in inputs.items()}
+
+    with torch.no_grad():
+        logits = model(**inputs).logits
+
+    # Apply sigmoid to get probabilities
+    probs = torch.sigmoid(logits).cpu().numpy()
+
+    # Convert probabilities to binary predictions
+    preds = (probs > 0.5).astype(int)
+
+    # Map binary predictions to class names
+    procedures = mlb.inverse_transform(preds)[0]
+
+    return {
+        "sentence": sentence,
+        "predicted_procedures": list(procedures)
+    }
+
+# Example usage
+example_sentence = "Implement network access control."
+prediction = predict(example_sentence)
+print(prediction)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import torch
 from transformers import RobertaTokenizer, RobertaForSequenceClassification, Trainer, TrainingArguments
 from sklearn.preprocessing import MultiLabelBinarizer
 from datasets import Dataset

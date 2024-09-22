@@ -3,6 +3,108 @@ import matplotlib.pyplot as plt
 
 # Assuming filtered_df contains 'extended_text' and 'procedure' columns
 
+# Step 1: Sentence Distribution
+sentence_counts = filtered_df['extended_text'].value_counts()
+
+# Display the most and least frequent sentences
+print("Top 10 most frequent sentences:")
+print(sentence_counts.head(10))
+
+print("\nTop 10 least frequent sentences:")
+print(sentence_counts.tail(10))
+
+# Plot sentence distribution
+plt.figure(figsize=(12, 6))
+sentence_counts.plot(kind='bar', color='lightgreen')
+plt.title('Sentence Distribution')
+plt.xlabel('Sentences')
+plt.ylabel('Count')
+plt.xticks(rotation=90)
+plt.show()
+
+# Step 2: Procedure Distribution as in previous analysis
+procedure_counts = filtered_df['procedure'].value_counts()
+
+# Plot procedure distribution again for reference
+plt.figure(figsize=(12, 6))
+procedure_counts.plot(kind='bar', color='skyblue')
+plt.title('Procedure Label Distribution')
+plt.xlabel('Procedure Labels')
+plt.ylabel('Count')
+plt.xticks(rotation=90)
+plt.show()
+
+# Step 3: Procedure-Sentence Relationship
+# Group the data by sentence and count the unique procedures per sentence
+sentence_procedure_counts = filtered_df.groupby('extended_text')['procedure'].nunique()
+
+# Display the most and least frequent sentences by number of unique procedures they map to
+print("Top 10 sentences with the most unique procedures:")
+print(sentence_procedure_counts.sort_values(ascending=False).head(10))
+
+print("\nTop 10 sentences with the least unique procedures:")
+print(sentence_procedure_counts.sort_values(ascending=True).head(10))
+
+# Plot the number of unique procedures per sentence
+plt.figure(figsize=(12, 6))
+sentence_procedure_counts.plot(kind='bar', color='orange')
+plt.title('Number of Unique Procedures per Sentence')
+plt.xlabel('Sentences')
+plt.ylabel('Number of Unique Procedures')
+plt.xticks(rotation=90)
+plt.show()
+
+# Step 4: Procedure Distribution per Sentence
+# Check how many times each procedure is mapped to different sentences
+procedure_sentence_counts = filtered_df.groupby('procedure')['extended_text'].nunique()
+
+# Display the most and least frequent procedures in terms of mapping to sentences
+print("Top 10 procedures with the most unique sentences:")
+print(procedure_sentence_counts.sort_values(ascending=False).head(10))
+
+print("\nTop 10 procedures with the least unique sentences:")
+print(procedure_sentence_counts.sort_values(ascending=True).head(10))
+
+# Plot procedure-sentence relationship
+plt.figure(figsize=(12, 6))
+procedure_sentence_counts.plot(kind='bar', color='purple')
+plt.title('Number of Unique Sentences per Procedure')
+plt.xlabel('Procedure')
+plt.ylabel('Number of Unique Sentences')
+plt.xticks(rotation=90)
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Assuming filtered_df contains 'extended_text' and 'procedure' columns
+
 # Step 1: Check the distribution of the procedures
 procedure_counts = filtered_df['procedure'].value_counts()
 

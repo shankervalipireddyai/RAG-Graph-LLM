@@ -1,3 +1,57 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Assuming filtered_df contains 'extended_text' and 'procedure' columns
+
+# Step 1: Check the distribution of the procedures
+procedure_counts = filtered_df['procedure'].value_counts()
+
+# Step 2: Display the most frequent and least frequent procedures
+print("Top 10 most frequent procedures:")
+print(procedure_counts.head(10))
+
+print("\nTop 10 least frequent procedures:")
+print(procedure_counts.tail(10))
+
+# Step 3: Plot the distribution of the procedures
+plt.figure(figsize=(12, 6))
+procedure_counts.plot(kind='bar', color='skyblue')
+plt.title('Procedure Label Distribution')
+plt.xlabel('Procedure Labels')
+plt.ylabel('Count')
+plt.xticks(rotation=90)
+plt.show()
+
+# Step 4: Calculate the proportion of each label
+procedure_proportion = procedure_counts / len(filtered_df)
+print("\nProcedure Proportions:")
+print(procedure_proportion.head(10))
+
+# Step 5: Identify potential imbalance (e.g., procedures that are highly underrepresented)
+imbalance_threshold = 0.01  # Example: Define threshold as 1% of the data
+underrepresented_procedures = procedure_proportion[procedure_proportion < imbalance_threshold]
+
+print(f"\nNumber of underrepresented procedures (less than {imbalance_threshold * 100}% of the data): {len(underrepresented_procedures)}")
+print("Underrepresented procedures:")
+print(underrepresented_procedures)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Ensure that labels_procedures are in the correct format
 # Each procedure should be treated as a list, even if there is only one procedure per sentence
 labels_procedures = [[label] if isinstance(label, str) else label for label in labels_procedures]

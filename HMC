@@ -1,4 +1,106 @@
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import re
+
+# Load your dataset
+filtered_df = pd.read_csv('your_dataset.csv')  # Replace with actual dataset path
+
+# 1. Check for Missing Values and Plot
+missing_values = filtered_df.isnull().sum()
+plt.figure(figsize=(8, 6))
+missing_values.plot(kind='bar', color='orange')
+plt.title("Missing Values per Column")
+plt.ylabel("Count")
+plt.show()
+print("Missing values per column:\n", missing_values)
+
+# 2. Check for Duplicate Entries and Show Count
+duplicates = filtered_df.duplicated(subset=['extended_text', 'procedure']).sum()
+print(f"Number of duplicate rows: {duplicates}")
+
+# 3. Check for Inconsistent Procedures (e.g., spelling mistakes, whitespace issues)
+procedure_unique = filtered_df['procedure'].unique()
+plt.figure(figsize=(12, 6))
+sns.countplot(y=filtered_df['procedure'], order=filtered_df['procedure'].value_counts().index)
+plt.title("Count of Each Procedure Label")
+plt.show()
+print(f"Unique procedures:\n{procedure_unique}")
+
+# Optional: Manual mapping to fix known inconsistent procedures (if applicable)
+# filtered_df['procedure'] = filtered_df['procedure'].replace({'inconsistent_name':'correct_name'})
+
+# 4. Analyze Sentence Length Distribution
+sentence_lengths = filtered_df['extended_text'].apply(lambda x: len(x.split()))
+plt.figure(figsize=(10, 6))
+sns.histplot(sentence_lengths, kde=True, color='blue')
+plt.title("Sentence Length Distribution")
+plt.xlabel("Number of Words")
+plt.ylabel("Frequency")
+plt.show()
+
+# Identify sentences that are too short or too long
+short_sentences = filtered_df[filtered_df['extended_text'].apply(lambda x: len(x.split()) < 5)]
+long_sentences = filtered_df[filtered_df['extended_text'].apply(lambda x: len(x.split()) > 100)]
+print(f"Number of short sentences (<5 words): {len(short_sentences)}")
+print(f"Number of long sentences (>100 words): {len(long_sentences)}")
+
+# 5. Detect Noise (Special characters, numbers, etc.) and Plot
+def has_noise(text):
+    return bool(re.search(r'[^a-zA-Z\s]', text))
+
+noisy_sentences = filtered_df[filtered_df['extended_text'].apply(has_noise)]
+print(f"Number of noisy sentences: {len(noisy_sentences)}")
+
+# Plot sentence length distribution for noisy vs non-noisy sentences
+filtered_df['has_noise'] = filtered_df['extended_text'].apply(has_noise)
+plt.figure(figsize=(10, 6))
+sns.histplot(data=filtered_df, x='extended_text', hue='has_noise', kde=True, palette="Set1")
+plt.title("Sentence Length Distribution (Noisy vs Non-Noisy)")
+plt.show()
+
+# 6. Plot Distribution of Sentences per Procedure
+procedure_counts = filtered_df['procedure'].value_counts()
+plt.figure(figsize=(12, 6))
+sns.barplot(x=procedure_counts.index, y=procedure_counts.values, palette="viridis")
+plt.xticks(rotation=90)
+plt.title("Number of Sentences per Procedure")
+plt.ylabel("Count")
+plt.show()
+
+# 7. Text Cleaning (Optional: remove extra whitespace, symbols, etc.)
+def clean_text(text):
+    text = re.sub(r'[^a-zA-Z\s]', '', text)  # Remove special characters
+    text = re.sub(r'\s+', ' ', text).strip()  # Remove extra whitespace
+    return text
+
+filtered_df['extended_text_clean'] = filtered_df['extended_text'].apply(clean_text)
+
+# Display a sample of cleaned text vs original text
+sample_data = filtered_df[['extended_text', 'extended_text_clean']].sample(5)
+print("Original vs Cleaned Text Sample:")
+print(sample_data)
+
+# Save the cleaned dataset
+filtered_df.to_csv('cleaned_dataset.csv', index=False)
+print("Cleaned dataset saved as 'cleaned_dataset.csv'")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import pandas as pd
 
 # Assuming 'filtered_df' contains 'extended_text' and 'procedure' columns
 # Step 1: Group by 'procedure' and limit to 20 sentences only for procedures with 30 or more sentences

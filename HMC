@@ -1,3 +1,24 @@
+# Ensure that labels_procedures are in the correct format
+# Each procedure should be treated as a list, even if there is only one procedure per sentence
+labels_procedures = [[label] if isinstance(label, str) else label for label in labels_procedures]
+
+# Encode labels using MultiLabelBinarizer
+mlb = MultiLabelBinarizer()
+encoded_labels = mlb.fit_transform(labels_procedures)
+
+# Ensure that the number of labels matches the number of sentences
+assert len(sentences) == len(encoded_labels), "Mismatch between sentences and encoded labels!"
+
+# Define number of labels (unique procedures)
+num_labels = len(mlb.classes_)
+print(f"Number of unique procedures (num_labels): {num_labels}")
+
+
+
+
+
+
+
 import torch
 import torch.nn as nn
 from transformers import RobertaTokenizer, RobertaModel, AdamW, Trainer, TrainingArguments

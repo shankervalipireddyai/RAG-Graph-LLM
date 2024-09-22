@@ -1,4 +1,39 @@
 import pandas as pd
+
+# Assuming 'filtered_df' contains 'extended_text' and 'procedure' columns
+# Step 1: Group by 'procedure' and limit to 20 sentences only for procedures with 30 or more sentences
+max_sentences_per_procedure = 20
+min_sentences_threshold = 30
+
+# Group by 'procedure' and apply a limit of 20 rows only if the procedure has 30 or more sentences
+balanced_df = filtered_df.groupby('procedure').apply(lambda x: x.sample(n=max_sentences_per_procedure) 
+                                                     if len(x) >= min_sentences_threshold else x)
+
+# Reset the index of the dataframe
+balanced_df = balanced_df.reset_index(drop=True)
+
+# Print some basic info about the balanced dataframe
+print(f"Original dataset size: {len(filtered_df)}")
+print(f"Balanced dataset size: {len(balanced_df)}")
+print(balanced_df['procedure'].value_counts())
+
+# Save the balanced dataset to a new CSV file if needed
+balanced_df.to_csv('balanced_filtered_df.csv', index=False)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import pandas as pd
 import matplotlib.pyplot as plt
 
 # Assuming filtered_df contains 'extended_text' and 'procedure' columns

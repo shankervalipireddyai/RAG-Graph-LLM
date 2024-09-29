@@ -1,3 +1,115 @@
+def debug_model(question):
+    print("### Step 1: Analyzing the Input Question ###")
+    
+    # Tokenize the input question
+    text_enc = Bert_tokenizer.encode_plus(
+        question,
+        None,
+        add_special_tokens=True,
+        max_length=MAX_LEN,
+        padding='max_length',
+        return_token_type_ids=False,
+        return_attention_mask=True,
+        truncation=True,
+        return_tensors='pt'
+    )
+
+    # Check tokenization details
+    input_ids = text_enc['input_ids']
+    attention_mask = text_enc['attention_mask']
+    print("Tokenized Input IDs:", input_ids)
+    print("Attention Mask:", attention_mask)
+    
+    decoded_question = Bert_tokenizer.decode(input_ids[0], skip_special_tokens=True)
+    print("Decoded Question:", decoded_question)
+    
+    # Determine the device of the model
+    device = next(QTmodel.parameters()).device
+
+    # Move input tensors to the same device as the model
+    input_ids = input_ids.to(device)
+    attention_mask = attention_mask.to(device)
+
+    print("\n### Step 2: Checking Model Predictions ###")
+    
+    # Perform the forward pass
+    with torch.no_grad():
+        outputs = QTmodel(input_ids, attention_mask)
+    
+    # Move the output back to CPU for numpy conversion
+    pred_out = outputs[0].detach().cpu().numpy()
+    print("Raw Model Output (Logits):", pred_out)
+
+    # Apply softmax/sigmoid if needed (depending on whether it's single-label or multi-label)
+    probabilities = torch.sigmoid(torch.tensor(pred_out)) if is_multilabel else torch.softmax(torch.tensor(pred_out), dim=-1)
+    print("Probabilities:", probabilities)
+    
+    # If it's multi-label classification, convert predictions based on threshold
+    threshold = 0.5
+    predicted_labels = (probabilities > threshold).int().numpy()
+    print("Predicted Labels (with threshold 0.5):", predicted_labels)
+
+    print("\n### Step 3: Investigating Dataset Label Distribution ###")
+    # Optionally, visualize the label distribution if applicable
+    plt.figure(figsize=(12, 6))
+    sns.countplot(x=filtered_df['procedure'])
+    plt.xticks(rotation=90)
+    plt.title("Procedure Label Distribution")
+    plt.show()
+
+    print("\n### Step 4: Checking Model Confidence ###")
+    print("Model Confidence per Class:", probabilities)
+
+    print("\n### Step 5: Checking Tokenization and Padding ###")
+    print("Padded Input IDs:", input_ids)
+    print("Decoded Question after Padding/Truncation:", decoded_question)
+
+    print("\n### Step 6: Checking Training History ###")
+    # Assuming you have training and validation loss history
+    plt.plot(train_loss, label="Training Loss")
+    plt.plot(val_loss, label="Validation Loss")
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.show()
+
+    print("\n### Step 7: Label-Specific Performance ###")
+    # If you have true labels and predictions, you can compute metrics like precision, recall, and F1 score
+    y_true = np.array(true_labels)  # Replace with actual ground truth
+    y_pred = predicted_labels  # Replace with actual model predictions
+
+    print(classification_report(y_true, y_pred, target_names=mlb.classes_))
+
+    print("\n### Step 8: Adjusting Prediction Threshold ###")
+    # Adjusting the threshold if needed
+    threshold = 0.3  # Try different thresholds
+    predictions = (probabilities > threshold).int().numpy()
+    print("Predictions with Threshold", threshold, ":", predictions)
+
+# Example usage:
+debug_model("How can I implement network access control?")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns

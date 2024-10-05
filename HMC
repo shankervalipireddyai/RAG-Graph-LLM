@@ -1,3 +1,87 @@
+
+
+
+
+
+
+
+
+
+
+import pandas as pd
+from imblearn.over_sampling import SMOTE
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neural_network import MLPClassifier
+from sklearn.ensemble import VotingClassifier
+from sklearn.metrics import accuracy_score, classification_report
+from sklearn.utils.class_weight import compute_class_weight
+
+# Load Excel file
+df = pd.read_excel('regulations.xlsx')
+
+# Separate features and labels
+X = df['summary']  # Text column
+y = df['tech/non-tech']  # Label column (tech or non-tech)
+
+# Split the data into train and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+
+# Convert text data to TF-IDF features
+vectorizer = TfidfVectorizer(max_features=5000)
+X_train_tfidf = vectorizer.fit_transform(X_train)
+X_test_tfidf = vectorizer.transform(X_test)
+
+# Handle imbalance using SMOTE (oversample the minority class)
+smote = SMOTE(random_state=42)
+X_train_resampled, y_train_resampled = smote.fit_resample(X_train_tfidf, y_train)
+
+# Define individual models
+nb = MultinomialNB()
+svm = SVC(probability=True, class_weight='balanced')  # SVM with class weight adjustment
+rf = RandomForestClassifier(n_estimators=100, class_weight='balanced')  # Random Forest with class weight adjustment
+ann = MLPClassifier(hidden_layer_sizes=(100,), max_iter=300)
+
+# Create an ensemble model using VotingClassifier
+ensemble_model = VotingClassifier(estimators=[
+    ('nb', nb),
+    ('svm', svm),
+    ('rf', rf),
+    ('ann', ann)
+], voting='soft')  # Use 'soft' voting to average probabilities
+
+# Train the ensemble model on the resampled data
+ensemble_model.fit(X_train_resampled, y_train_resampled)
+
+# Predict on the test set
+y_pred = ensemble_model.predict(X_test_tfidf)
+
+# Calculate accuracy and show classification report
+accuracy = accuracy_score(y_test, y_pred)
+print(f'Ensemble model accuracy: {accuracy:.4f}')
+print(classification_report(y_test, y_pred, target_names=['Non-Tech', 'Tech']))
+
+
+
+pip install imbalanced-learn
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 def debug_model(question):
     print("### Step 1: Analyzing the Input Question ###")
     

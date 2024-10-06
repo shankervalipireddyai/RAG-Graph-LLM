@@ -25,6 +25,131 @@ vectorizer = TfidfVectorizer(max_features=5000)
 X_train_tfidf = vectorizer.fit_transform(X_train)
 X_test_tfidf = vectorizer.transform(X_test)
 
+# Step 2: Apply SMOTE to handle class imbalance on the numerical TF-IDF features
+smote = SMOTE(random_state=42)
+X_train_resampled, y_train_resampled = smote.fit_resample(X_train_tfidf, y_train)
+
+# Step 3: Inverse transform the resampled TF-IDF features back into text
+X_train_resampled_text = [' '.join(vectorizer.inverse_transform(doc)[0]) for doc in X_train_resampled]
+
+# Step 4: Tokenize the text using RoBERTa tokenizer
+tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+
+# Tokenization function for Hugging Face datasets
+def tokenize_function(examples):
+    return tokenizer(examples['text'], padding=True, truncation=True)
+
+# Prepare dataset for Hugging Face Trainer
+train_data = Dataset.from_dict({'text': X_train_resampled_text, 'label': y_train_resampled})
+test_data = Dataset.from_dict({'text': X_test.tolist(), 'label': y_test.tolist()})
+
+# Map tokenization function onto the datasets
+train_data = train_data.map(tokenize_function, batched=True)
+test_data = test_data.map(tokenize_function, batched=True)
+
+# Set the format for PyTorch
+train_data.set_format(type='torch', columns=['input_ids', 'attention_mask', 'label'])
+test_data.set_format(type='torch', columns=['input_ids', 'attention_mask', 'label'])
+
+# Step 5: Define RoBERTa model and TrainingArguments
+model = RobertaForSequenceClassification.from_pretrained('roberta-base', num_labels=2)
+
+training_args = TrainingArguments(
+    output_dir='./results',
+    learning_rate=2e-5,
+    per_device_train_batch_size=16,
+    per_device_eval_batch_size=16,
+    num_train_epochs=3,
+    evaluation_strategy="epoch",
+    save_strategy="epoch",
+    logging_dir='./logs',
+    logging_steps=10,
+    load_best_model_at_end=True
+)
+
+# Step 6: Define Trainer and train the model
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_data,
+    eval_dataset=test_data,
+    tokenizer=tokenizer,
+    compute_metrics=lambda p: {'accuracy': (p.predictions.argmax(-1) == p.label_ids).mean()}
+)
+
+# Train the model
+trainer.train()
+
+# Step 7: Make predictions and evaluate
+predictions = trainer.predict(test_data)
+pred_labels = np.argmax(predictions.predictions, axis=1)
+
+# Print predictions for the first 20 rows and compare with actual labels
+print("\nPredictions vs Actual (First 20 Rows):")
+for i in range(20):
+    print(f"Prediction: {pred_labels[i]}, Actual: {y_test.iloc[i]}")
+
+# Classification report
+print("\nClassification Report:")
+print(classification_report(y_test, pred_labels, target_names=['Non-Tech', 'Tech']))
+
+# Confusion matrix
+cm = confusion_matrix(y_test, pred_labels)
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Non-Tech', 'Tech'], yticklabels=['Non-Tech', 'Tech'])
+plt.ylabel('Actual')
+plt.xlabel('Predicted')
+plt.title('Confusion Matrix')
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from imblearn.over_sampling import SMOTE
+from transformers import RobertaTokenizer, RobertaForSequenceClassification, Trainer, TrainingArguments
+import torch
+from sklearn.metrics import classification_report, confusion_matrix
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from datasets import Dataset
+
+# Load Excel file
+df = pd.read_excel('regulations.xlsx')
+
+# Separate features and labels
+X = df['summary']  # Text column
+y = df['tech/non-tech']  # Label column (tech or non-tech)
+
+# Split the data into train and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+
+# Step 1: Convert text data to TF-IDF features (Numerical representation)
+vectorizer = TfidfVectorizer(max_features=5000)
+X_train_tfidf = vectorizer.fit_transform(X_train)
+X_test_tfidf = vectorizer.transform(X_test)
+
 # Step 2: Apply SMOTE to handle class imbalance
 smote = SMOTE(random_state=42)
 X_train_resampled, y_train_resampled = smote.fit_resample(X_train_tfidf, y_train)

@@ -1,3 +1,139 @@
+
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from collections import Counter
+from sklearn.utils import resample
+from transformers import RobertaTokenizer, RobertaForSequenceClassification, Trainer, TrainingArguments
+from datasets import Dataset
+from sklearn.metrics import classification_report, confusion_matrix, f1_score
+import seaborn as sns
+import matplotlib.pyplot as plt
+import torch
+
+# Load Excel file (replace with your actual file path)
+df = pd.read_excel('regulations.xlsx')
+
+# Separate features and labels
+X = df['summary']
+y = df['tech/non-tech']
+
+# Split the data into train and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+
+# Concatenate training data back together into a DataFrame
+df_train = pd.DataFrame({'summary': X_train, 'label': y_train}).reset_index(drop=True)
+
+# Separate majority and minority classes
+majority_class = df_train[df_train['label'] == 0]
+minority_class = df_train[df_train['label'] == 1]
+
+# Upsample minority class
+minority_upsampled = resample(minority_class,
+                              replace=True,
+                              n_samples=len(majority_class),
+                              random_state=42)
+
+# Combine majority class with upsampled minority class
+upsampled_train = pd.concat([majority_class, minority_upsampled])
+
+# Separate features and labels
+X_train_resampled, y_train_resampled = upsampled_train['summary'], upsampled_train['label']
+
+# Initialize tokenizer
+tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+
+# Tokenization function
+def tokenize_function(examples):
+    return tokenizer(
+        examples['text'],
+        padding='max_length',
+        truncation=True,
+        max_length=512,
+        return_tensors='pt'
+    )
+
+# Prepare datasets
+train_data = Dataset.from_dict({'text': X_train_resampled.tolist(), 'label': y_train_resampled.tolist()})
+test_data = Dataset.from_dict({'text': X_test.tolist(), 'label': y_test.tolist()})
+
+# Tokenize datasets
+train_data = train_data.map(tokenize_function, batched=True, remove_columns=['text'])
+test_data = test_data.map(tokenize_function, batched=True, remove_columns=['text'])
+
+# Convert labels to integers
+train_data = train_data.map(lambda examples: {'labels': examples['label']}, remove_columns=['label'])
+test_data = test_data.map(lambda examples: {'labels': examples['label']}, remove_columns=['label'])
+
+# Set format for PyTorch
+train_data.set_format(type='torch', columns=['input_ids', 'attention_mask', 'labels'])
+test_data.set_format(type='torch', columns=['input_ids', 'attention_mask', 'labels'])
+
+# Initialize model
+model = RobertaForSequenceClassification.from_pretrained('roberta-base', num_labels=2)
+
+# Define training arguments
+training_args = TrainingArguments(
+    output_dir='./results',
+    learning_rate=2e-5,
+    per_device_train_batch_size=16,
+    per_device_eval_batch_size=16,
+    num_train_epochs=3,
+    evaluation_strategy="epoch",
+    save_strategy="epoch",
+    logging_dir='./logs',
+    logging_steps=10,
+    load_best_model_at_end=True,
+    metric_for_best_model='f1',
+    greater_is_better=True
+)
+
+# Define compute_metrics function
+def compute_metrics(eval_pred):
+    logits, labels = eval_pred
+    predictions = np.argmax(logits, axis=-1)
+    return {
+        'accuracy': (predictions == labels).mean(),
+        'f1': f1_score(labels, predictions, average='weighted')
+    }
+
+# Initialize trainer
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_data,
+    eval_dataset=test_data,
+    tokenizer=tokenizer,
+    compute_metrics=compute_metrics
+)
+
+# Train the model
+trainer.train()
+
+# Make predictions and evaluate
+predictions = trainer.predict(test_data)
+pred_labels = np.argmax(predictions.predictions, axis=1)
+
+# Print predictions for the first 20 rows
+print("\nPredictions vs Actual (First 20 Rows):")
+for i in range(20):
+    print(f"Prediction: {pred_labels[i]}, Actual: {y_test.iloc[i]}")
+
+# Classification report
+print("\nClassification Report:")
+print(classification_report(y_test, pred_labels, target_names=['Non-Tech', 'Tech']))
+
+# Confusion matrix
+cm = confusion_matrix(y_test, pred_labels)
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Non-Tech', 'Tech'], yticklabels=['Non-Tech', 'Tech'])
+plt.ylabel('Actual')
+plt.xlabel('Predicted')
+plt.title('Confusion Matrix')
+plt.show()
+
+
+
+
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from transformers import RobertaTokenizer, RobertaForSequenceClassification, Trainer, TrainingArguments

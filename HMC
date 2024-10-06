@@ -1,3 +1,99 @@
+
+aiohttp==3.8.5
+aiosignal==1.3.1
+appnope==0.1.3
+asttokens==2.2.1
+async-timeout==4.0.2
+attrs==22.2.0
+backcall==0.2.0
+beautifulsoup4==4.11.1
+blobfile==2.0.1
+bs4==0.0.1
+certifi==2023.7.22
+charset-normalizer==2.1.1
+comm==0.1.2
+contourpy==1.0.7
+cycler==0.11.0
+debugpy==1.6.5
+decorator==5.1.1
+docopt==0.6.2
+entrypoints==0.4
+executing==1.2.0
+filelock==3.9.0
+fonttools==4.38.0
+frozenlist==1.3.3
+huggingface-hub>=0.0.12
+idna==3.4
+ipykernel==6.20.1
+ipython==8.10.0
+jedi==0.18.2
+joblib==1.2.0
+jupyter_client==7.4.8
+jupyter_core==5.1.3
+kiwisolver==1.4.4
+lxml==4.9.2
+matplotlib==3.6.3
+matplotlib-inline==0.1.6
+multidict==6.0.4
+nest-asyncio==1.5.6
+numpy==1.24.1
+openai==0.26.1
+packaging==23.0
+pandas==1.5.2
+parso==0.8.3
+pexpect==4.8.0
+pickleshare==0.7.5
+Pillow==9.4.0
+pipreqs==0.4.12
+platformdirs==2.6.2
+plotly==5.12.0
+prompt-toolkit==3.0.36
+psutil==5.9.4
+ptyprocess==0.7.0
+pure-eval==0.2.2
+pycryptodomex==3.17
+Pygments==2.15.0
+pyparsing==3.0.9
+python-dateutil==2.8.2
+pytz==2022.7.1
+PyYAML==6.0
+pyzmq==24.0.1
+regex==2022.10.31
+requests==2.31.0
+scikit-learn==1.2.0
+scipy==1.10.0
+six==1.16.0
+soupsieve==2.3.2.post1
+stack-data==0.6.2
+tenacity==8.1.0
+threadpoolctl==3.1.0
+tiktoken==0.1.2
+tokenizers==0.13.2
+tornado==6.3.3
+tqdm==4.64.1
+traitlets==5.8.1
+transformers==4.30.0
+typing_extensions==4.4.0
+urllib3==1.26.13
+wcwidth==0.2.5
+yarg==0.1.9
+yarl==1.8.2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import requests
 import re
 import urllib.request
@@ -137,465 +233,11 @@ def crawl(url):
                 seen.add(link)
 
 crawl(full_url)
-https://www.featur.ai/
-https://www.featur.ai/blog
-https://www.featur.ai/post/revolutionizing-industries-featur-ai-s-full-stack-generative-ai-solutions
-https://www.featur.ai/post/enhancing-business-operations-featur-ai-s-cutting-edge-ai-technology
-https://www.featur.ai/post/leveraging-bertopic-and-llm-for-effective-customer-review-analysis
-https://www.featur.ai/post/next-level-insights-featur-ai-s-rag-based-ai-applications
-https://www.featur.ai/product-page/insurance-claims-processing-agent
-https://www.featur.ai
-https://www.featur.ai/service-page/online-meeting
-https://www.featur.ai/product-page/healthcare-disease-diagnosis-graph
-https://www.featur.ai/product-page/finance-rag-assistant
-https://www.featur.ai/book-online
-https://www.featur.ai/product-page/healthcare-patient-care-agent
-https://www.featur.ai/product-page/finance-risk-assessment-agent
+
+
+
 !pip install -r requirements.txt
-Collecting aiohttp==3.8.5 (from -r requirements.txt (line 1))
-  Downloading aiohttp-3.8.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (1.0 MB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 0.0/1.0 MB ? eta -:--:--
-     ━━━━━╸━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 0.1/1.0 MB 4.1 MB/s eta 0:00:01
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━ 0.8/1.0 MB 11.2 MB/s eta 0:00:01
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.0/1.0 MB 10.6 MB/s eta 0:00:00
-Requirement already satisfied: aiosignal==1.3.1 in /usr/local/lib/python3.10/dist-packages (from -r requirements.txt (line 2)) (1.3.1)
-Collecting appnope==0.1.3 (from -r requirements.txt (line 3))
-  Downloading appnope-0.1.3-py2.py3-none-any.whl (4.4 kB)
-Collecting asttokens==2.2.1 (from -r requirements.txt (line 4))
-  Downloading asttokens-2.2.1-py2.py3-none-any.whl (26 kB)
-Collecting async-timeout==4.0.2 (from -r requirements.txt (line 5))
-  Downloading async_timeout-4.0.2-py3-none-any.whl (5.8 kB)
-Collecting attrs==22.2.0 (from -r requirements.txt (line 6))
-  Downloading attrs-22.2.0-py3-none-any.whl (60 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 60.0/60.0 kB 6.8 MB/s eta 0:00:00
-Requirement already satisfied: backcall==0.2.0 in /usr/local/lib/python3.10/dist-packages (from -r requirements.txt (line 7)) (0.2.0)
-Collecting beautifulsoup4==4.11.1 (from -r requirements.txt (line 8))
-  Downloading beautifulsoup4-4.11.1-py3-none-any.whl (128 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 128.2/128.2 kB 14.4 MB/s eta 0:00:00
-Collecting blobfile==2.0.1 (from -r requirements.txt (line 9))
-  Downloading blobfile-2.0.1-py3-none-any.whl (73 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.5/73.5 kB 9.0 MB/s eta 0:00:00
-Collecting bs4==0.0.1 (from -r requirements.txt (line 10))
-  Downloading bs4-0.0.1.tar.gz (1.1 kB)
-  Preparing metadata (setup.py) ... done
-Collecting certifi==2023.7.22 (from -r requirements.txt (line 11))
-  Downloading certifi-2023.7.22-py3-none-any.whl (158 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 158.3/158.3 kB 18.2 MB/s eta 0:00:00
-Collecting charset-normalizer==2.1.1 (from -r requirements.txt (line 12))
-  Downloading charset_normalizer-2.1.1-py3-none-any.whl (39 kB)
-Collecting comm==0.1.2 (from -r requirements.txt (line 13))
-  Downloading comm-0.1.2-py3-none-any.whl (6.5 kB)
-Collecting contourpy==1.0.7 (from -r requirements.txt (line 14))
-  Downloading contourpy-1.0.7-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (300 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 300.3/300.3 kB 13.5 MB/s eta 0:00:00
-Collecting cycler==0.11.0 (from -r requirements.txt (line 15))
-  Downloading cycler-0.11.0-py3-none-any.whl (6.4 kB)
-Collecting debugpy==1.6.5 (from -r requirements.txt (line 16))
-  Downloading debugpy-1.6.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.0 MB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.0/3.0 MB 21.5 MB/s eta 0:00:00
-Collecting decorator==5.1.1 (from -r requirements.txt (line 17))
-  Downloading decorator-5.1.1-py3-none-any.whl (9.1 kB)
-Collecting docopt==0.6.2 (from -r requirements.txt (line 18))
-  Downloading docopt-0.6.2.tar.gz (25 kB)
-  Preparing metadata (setup.py) ... done
-Requirement already satisfied: entrypoints==0.4 in /usr/local/lib/python3.10/dist-packages (from -r requirements.txt (line 19)) (0.4)
-Collecting executing==1.2.0 (from -r requirements.txt (line 20))
-  Downloading executing-1.2.0-py2.py3-none-any.whl (24 kB)
-Collecting filelock==3.9.0 (from -r requirements.txt (line 21))
-  Downloading filelock-3.9.0-py3-none-any.whl (9.7 kB)
-Collecting fonttools==4.38.0 (from -r requirements.txt (line 22))
-  Downloading fonttools-4.38.0-py3-none-any.whl (965 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 965.4/965.4 kB 25.0 MB/s eta 0:00:00
-Collecting frozenlist==1.3.3 (from -r requirements.txt (line 23))
-  Downloading frozenlist-1.3.3-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl (149 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 149.6/149.6 kB 18.5 MB/s eta 0:00:00
-Requirement already satisfied: huggingface-hub>=0.0.12 in /usr/local/lib/python3.10/dist-packages (from -r requirements.txt (line 24)) (0.20.3)
-Collecting idna==3.4 (from -r requirements.txt (line 25))
-  Downloading idna-3.4-py3-none-any.whl (61 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 61.5/61.5 kB 7.4 MB/s eta 0:00:00
-Collecting ipykernel==6.20.1 (from -r requirements.txt (line 26))
-  Downloading ipykernel-6.20.1-py3-none-any.whl (149 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 149.2/149.2 kB 15.2 MB/s eta 0:00:00
-Collecting ipython==8.10.0 (from -r requirements.txt (line 27))
-  Downloading ipython-8.10.0-py3-none-any.whl (784 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 784.3/784.3 kB 28.6 MB/s eta 0:00:00
-Collecting jedi==0.18.2 (from -r requirements.txt (line 28))
-  Downloading jedi-0.18.2-py2.py3-none-any.whl (1.6 MB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.6/1.6 MB 30.7 MB/s eta 0:00:00
-Collecting joblib==1.2.0 (from -r requirements.txt (line 29))
-  Downloading joblib-1.2.0-py3-none-any.whl (297 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 298.0/298.0 kB 27.6 MB/s eta 0:00:00
-Collecting jupyter_client==7.4.8 (from -r requirements.txt (line 30))
-  Downloading jupyter_client-7.4.8-py3-none-any.whl (133 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 133.5/133.5 kB 17.2 MB/s eta 0:00:00
-Collecting jupyter_core==5.1.3 (from -r requirements.txt (line 31))
-  Downloading jupyter_core-5.1.3-py3-none-any.whl (93 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 93.5/93.5 kB 12.1 MB/s eta 0:00:00
-Collecting kiwisolver==1.4.4 (from -r requirements.txt (line 32))
-  Downloading kiwisolver-1.4.4-cp310-cp310-manylinux_2_12_x86_64.manylinux2010_x86_64.whl (1.6 MB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.6/1.6 MB 34.5 MB/s eta 0:00:00
-Collecting lxml==4.9.2 (from -r requirements.txt (line 33))
-  Downloading lxml-4.9.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux_2_24_x86_64.whl (7.1 MB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.1/7.1 MB 45.8 MB/s eta 0:00:00
-Collecting matplotlib==3.6.3 (from -r requirements.txt (line 34))
-  Downloading matplotlib-3.6.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (11.8 MB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 11.8/11.8 MB 58.7 MB/s eta 0:00:00
-Collecting matplotlib-inline==0.1.6 (from -r requirements.txt (line 35))
-  Downloading matplotlib_inline-0.1.6-py3-none-any.whl (9.4 kB)
-Collecting multidict==6.0.4 (from -r requirements.txt (line 36))
-  Downloading multidict-6.0.4-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (114 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 114.5/114.5 kB 12.9 MB/s eta 0:00:00
-Collecting nest-asyncio==1.5.6 (from -r requirements.txt (line 37))
-  Downloading nest_asyncio-1.5.6-py3-none-any.whl (5.2 kB)
-Collecting numpy==1.24.1 (from -r requirements.txt (line 38))
-  Downloading numpy-1.24.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (17.3 MB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 17.3/17.3 MB 59.3 MB/s eta 0:00:00
-Collecting openai==0.26.1 (from -r requirements.txt (line 39))
-  Downloading openai-0.26.1.tar.gz (55 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 55.3/55.3 kB 7.3 MB/s eta 0:00:00
-  Installing build dependencies ... done
-  Getting requirements to build wheel ... done
-  Preparing metadata (pyproject.toml) ... done
-Collecting packaging==23.0 (from -r requirements.txt (line 40))
-  Downloading packaging-23.0-py3-none-any.whl (42 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 42.7/42.7 kB 5.4 MB/s eta 0:00:00
-Collecting pandas==1.5.2 (from -r requirements.txt (line 41))
-  Downloading pandas-1.5.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (12.1 MB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.1/12.1 MB 79.3 MB/s eta 0:00:00
-Collecting parso==0.8.3 (from -r requirements.txt (line 42))
-  Downloading parso-0.8.3-py2.py3-none-any.whl (100 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100.8/100.8 kB 13.3 MB/s eta 0:00:00
-Collecting pexpect==4.8.0 (from -r requirements.txt (line 43))
-  Downloading pexpect-4.8.0-py2.py3-none-any.whl (59 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 59.0/59.0 kB 6.8 MB/s eta 0:00:00
-Requirement already satisfied: pickleshare==0.7.5 in /usr/local/lib/python3.10/dist-packages (from -r requirements.txt (line 44)) (0.7.5)
-Requirement already satisfied: Pillow==9.4.0 in /usr/local/lib/python3.10/dist-packages (from -r requirements.txt (line 45)) (9.4.0)
-Collecting pipreqs==0.4.12 (from -r requirements.txt (line 46))
-  Downloading pipreqs-0.4.12-py2.py3-none-any.whl (32 kB)
-Collecting platformdirs==2.6.2 (from -r requirements.txt (line 47))
-  Downloading platformdirs-2.6.2-py3-none-any.whl (14 kB)
-Collecting plotly==5.12.0 (from -r requirements.txt (line 48))
-  Downloading plotly-5.12.0-py2.py3-none-any.whl (15.2 MB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 15.2/15.2 MB 74.4 MB/s eta 0:00:00
-Collecting prompt-toolkit==3.0.36 (from -r requirements.txt (line 49))
-  Downloading prompt_toolkit-3.0.36-py3-none-any.whl (386 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 386.4/386.4 kB 34.1 MB/s eta 0:00:00
-Collecting psutil==5.9.4 (from -r requirements.txt (line 50))
-  Downloading psutil-5.9.4-cp36-abi3-manylinux_2_12_x86_64.manylinux2010_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl (280 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 280.2/280.2 kB 29.1 MB/s eta 0:00:00
-Requirement already satisfied: ptyprocess==0.7.0 in /usr/local/lib/python3.10/dist-packages (from -r requirements.txt (line 51)) (0.7.0)
-Collecting pure-eval==0.2.2 (from -r requirements.txt (line 52))
-  Downloading pure_eval-0.2.2-py3-none-any.whl (11 kB)
-Collecting pycryptodomex==3.17 (from -r requirements.txt (line 53))
-  Downloading pycryptodomex-3.17-cp35-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 77.1 MB/s eta 0:00:00
-Collecting Pygments==2.15.0 (from -r requirements.txt (line 54))
-  Downloading Pygments-2.15.0-py3-none-any.whl (1.1 MB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.1/1.1 MB 60.2 MB/s eta 0:00:00
-Collecting pyparsing==3.0.9 (from -r requirements.txt (line 55))
-  Downloading pyparsing-3.0.9-py3-none-any.whl (98 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 98.3/98.3 kB 12.8 MB/s eta 0:00:00
-Requirement already satisfied: python-dateutil==2.8.2 in /usr/local/lib/python3.10/dist-packages (from -r requirements.txt (line 56)) (2.8.2)
-Collecting pytz==2022.7.1 (from -r requirements.txt (line 57))
-  Downloading pytz-2022.7.1-py2.py3-none-any.whl (499 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 499.4/499.4 kB 32.9 MB/s eta 0:00:00
-Collecting PyYAML==6.0 (from -r requirements.txt (line 58))
-  Downloading PyYAML-6.0-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl (682 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 682.2/682.2 kB 34.8 MB/s eta 0:00:00
-Requirement already satisfied: pyzmq==24.0.1 in /usr/local/lib/python3.10/dist-packages (from -r requirements.txt (line 59)) (24.0.1)
-Collecting regex==2022.10.31 (from -r requirements.txt (line 60))
-  Downloading regex-2022.10.31-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (770 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 770.5/770.5 kB 44.3 MB/s eta 0:00:00
-Requirement already satisfied: requests==2.31.0 in /usr/local/lib/python3.10/dist-packages (from -r requirements.txt (line 61)) (2.31.0)
-Collecting scikit-learn==1.2.0 (from -r requirements.txt (line 62))
-  Downloading scikit_learn-1.2.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (9.5 MB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 9.5/9.5 MB 57.1 MB/s eta 0:00:00
-Collecting scipy==1.10.0 (from -r requirements.txt (line 63))
-  Downloading scipy-1.10.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (34.4 MB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 34.4/34.4 MB 11.0 MB/s eta 0:00:00
-Requirement already satisfied: six==1.16.0 in /usr/local/lib/python3.10/dist-packages (from -r requirements.txt (line 64)) (1.16.0)
-Collecting soupsieve==2.3.2.post1 (from -r requirements.txt (line 65))
-  Downloading soupsieve-2.3.2.post1-py3-none-any.whl (37 kB)
-Collecting stack-data==0.6.2 (from -r requirements.txt (line 66))
-  Downloading stack_data-0.6.2-py3-none-any.whl (24 kB)
-Collecting tenacity==8.1.0 (from -r requirements.txt (line 67))
-  Downloading tenacity-8.1.0-py3-none-any.whl (23 kB)
-Collecting threadpoolctl==3.1.0 (from -r requirements.txt (line 68))
-  Downloading threadpoolctl-3.1.0-py3-none-any.whl (14 kB)
-Collecting tiktoken==0.1.2 (from -r requirements.txt (line 69))
-  Downloading tiktoken-0.1.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (1.6 MB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.6/1.6 MB 72.9 MB/s eta 0:00:00
-Collecting tokenizers==0.13.2 (from -r requirements.txt (line 70))
-  Downloading tokenizers-0.13.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (7.6 MB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.6/7.6 MB 96.5 MB/s eta 0:00:00
-Requirement already satisfied: tornado==6.3.3 in /usr/local/lib/python3.10/dist-packages (from -r requirements.txt (line 71)) (6.3.3)
-Collecting tqdm==4.64.1 (from -r requirements.txt (line 72))
-  Downloading tqdm-4.64.1-py2.py3-none-any.whl (78 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.5/78.5 kB 10.2 MB/s eta 0:00:00
-Collecting traitlets==5.8.1 (from -r requirements.txt (line 73))
-  Downloading traitlets-5.8.1-py3-none-any.whl (116 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 116.8/116.8 kB 13.5 MB/s eta 0:00:00
-Collecting transformers==4.30.0 (from -r requirements.txt (line 74))
-  Downloading transformers-4.30.0-py3-none-any.whl (7.2 MB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.2/7.2 MB 91.8 MB/s eta 0:00:00
-Collecting typing_extensions==4.4.0 (from -r requirements.txt (line 75))
-  Downloading typing_extensions-4.4.0-py3-none-any.whl (26 kB)
-Collecting urllib3==1.26.13 (from -r requirements.txt (line 76))
-  Downloading urllib3-1.26.13-py2.py3-none-any.whl (140 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 140.6/140.6 kB 18.2 MB/s eta 0:00:00
-Collecting wcwidth==0.2.5 (from -r requirements.txt (line 77))
-  Downloading wcwidth-0.2.5-py2.py3-none-any.whl (30 kB)
-Collecting yarg==0.1.9 (from -r requirements.txt (line 78))
-  Downloading yarg-0.1.9-py2.py3-none-any.whl (19 kB)
-Collecting yarl==1.8.2 (from -r requirements.txt (line 79))
-  Downloading yarl-1.8.2-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (264 kB)
-     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 264.0/264.0 kB 30.4 MB/s eta 0:00:00
-Requirement already satisfied: safetensors>=0.3.1 in /usr/local/lib/python3.10/dist-packages (from transformers==4.30.0->-r requirements.txt (line 74)) (0.4.3)
-Requirement already satisfied: fsspec>=2023.5.0 in /usr/local/lib/python3.10/dist-packages (from huggingface-hub>=0.0.12->-r requirements.txt (line 24)) (2023.6.0)
-Building wheels for collected packages: bs4, docopt, openai
-  Building wheel for bs4 (setup.py) ... done
-  Created wheel for bs4: filename=bs4-0.0.1-py3-none-any.whl size=1255 sha256=ab71436d9ab0aa2ecfc46b55f48b107239199780531e0498141f755f4939e26a
-  Stored in directory: /root/.cache/pip/wheels/25/42/45/b773edc52acb16cd2db4cf1a0b47117e2f69bb4eb300ed0e70
-  Building wheel for docopt (setup.py) ... done
-  Created wheel for docopt: filename=docopt-0.6.2-py2.py3-none-any.whl size=13706 sha256=10970c0957d68b8e2981cb06958998de50eddb66a91b94269ffb0d86a134eecf
-  Stored in directory: /root/.cache/pip/wheels/fc/ab/d4/5da2067ac95b36618c629a5f93f809425700506f72c9732fac
-  Building wheel for openai (pyproject.toml) ... done
-  Created wheel for openai: filename=openai-0.26.1-py3-none-any.whl size=67284 sha256=687103b8cacce1901810211195d6be22746bae61aae9005a1fea7d3fa4907d3e
-  Stored in directory: /root/.cache/pip/wheels/18/cc/20/ba0ee3af9dddcdaa3496652087be11b09f28956640528bd7c6
-Successfully built bs4 docopt openai
-Installing collected packages: wcwidth, tokenizers, pytz, pure-eval, executing, docopt, appnope, urllib3, typing_extensions, traitlets, tqdm, threadpoolctl, tenacity, soupsieve, regex, PyYAML, pyparsing, Pygments, pycryptodomex, psutil, prompt-toolkit, platformdirs, pexpect, parso, packaging, numpy, nest-asyncio, multidict, lxml, kiwisolver, joblib, idna, frozenlist, fonttools, filelock, decorator, debugpy, cycler, charset-normalizer, certifi, attrs, async-timeout, asttokens, yarl, stack-data, scipy, plotly, pandas, matplotlib-inline, jupyter_core, jedi, contourpy, comm, blobfile, beautifulsoup4, yarg, tiktoken, scikit-learn, matplotlib, jupyter_client, ipython, bs4, aiohttp, transformers, pipreqs, openai, ipykernel
-  Attempting uninstall: wcwidth
-    Found existing installation: wcwidth 0.2.13
-    Uninstalling wcwidth-0.2.13:
-      Successfully uninstalled wcwidth-0.2.13
-  Attempting uninstall: tokenizers
-    Found existing installation: tokenizers 0.19.1
-    Uninstalling tokenizers-0.19.1:
-      Successfully uninstalled tokenizers-0.19.1
-  Attempting uninstall: pytz
-    Found existing installation: pytz 2023.4
-    Uninstalling pytz-2023.4:
-      Successfully uninstalled pytz-2023.4
-  Attempting uninstall: urllib3
-    Found existing installation: urllib3 2.0.7
-    Uninstalling urllib3-2.0.7:
-      Successfully uninstalled urllib3-2.0.7
-  Attempting uninstall: typing_extensions
-    Found existing installation: typing_extensions 4.11.0
-    Uninstalling typing_extensions-4.11.0:
-      Successfully uninstalled typing_extensions-4.11.0
-  Attempting uninstall: traitlets
-    Found existing installation: traitlets 5.7.1
-    Uninstalling traitlets-5.7.1:
-      Successfully uninstalled traitlets-5.7.1
-  Attempting uninstall: tqdm
-    Found existing installation: tqdm 4.66.2
-    Uninstalling tqdm-4.66.2:
-      Successfully uninstalled tqdm-4.66.2
-  Attempting uninstall: threadpoolctl
-    Found existing installation: threadpoolctl 3.5.0
-    Uninstalling threadpoolctl-3.5.0:
-      Successfully uninstalled threadpoolctl-3.5.0
-  Attempting uninstall: tenacity
-    Found existing installation: tenacity 8.2.3
-    Uninstalling tenacity-8.2.3:
-      Successfully uninstalled tenacity-8.2.3
-  Attempting uninstall: soupsieve
-    Found existing installation: soupsieve 2.5
-    Uninstalling soupsieve-2.5:
-      Successfully uninstalled soupsieve-2.5
-  Attempting uninstall: regex
-    Found existing installation: regex 2023.12.25
-    Uninstalling regex-2023.12.25:
-      Successfully uninstalled regex-2023.12.25
-  Attempting uninstall: PyYAML
-    Found existing installation: PyYAML 6.0.1
-    Uninstalling PyYAML-6.0.1:
-      Successfully uninstalled PyYAML-6.0.1
-  Attempting uninstall: pyparsing
-    Found existing installation: pyparsing 3.1.2
-    Uninstalling pyparsing-3.1.2:
-      Successfully uninstalled pyparsing-3.1.2
-  Attempting uninstall: Pygments
-    Found existing installation: Pygments 2.16.1
-    Uninstalling Pygments-2.16.1:
-      Successfully uninstalled Pygments-2.16.1
-  Attempting uninstall: psutil
-    Found existing installation: psutil 5.9.5
-    Uninstalling psutil-5.9.5:
-      Successfully uninstalled psutil-5.9.5
-  Attempting uninstall: prompt-toolkit
-    Found existing installation: prompt-toolkit 3.0.43
-    Uninstalling prompt-toolkit-3.0.43:
-      Successfully uninstalled prompt-toolkit-3.0.43
-  Attempting uninstall: platformdirs
-    Found existing installation: platformdirs 4.2.1
-    Uninstalling platformdirs-4.2.1:
-      Successfully uninstalled platformdirs-4.2.1
-  Attempting uninstall: pexpect
-    Found existing installation: pexpect 4.9.0
-    Uninstalling pexpect-4.9.0:
-      Successfully uninstalled pexpect-4.9.0
-  Attempting uninstall: parso
-    Found existing installation: parso 0.8.4
-    Uninstalling parso-0.8.4:
-      Successfully uninstalled parso-0.8.4
-  Attempting uninstall: packaging
-    Found existing installation: packaging 24.0
-    Uninstalling packaging-24.0:
-      Successfully uninstalled packaging-24.0
-  Attempting uninstall: numpy
-    Found existing installation: numpy 1.25.2
-    Uninstalling numpy-1.25.2:
-      Successfully uninstalled numpy-1.25.2
-  Attempting uninstall: nest-asyncio
-    Found existing installation: nest-asyncio 1.6.0
-    Uninstalling nest-asyncio-1.6.0:
-      Successfully uninstalled nest-asyncio-1.6.0
-  Attempting uninstall: multidict
-    Found existing installation: multidict 6.0.5
-    Uninstalling multidict-6.0.5:
-      Successfully uninstalled multidict-6.0.5
-  Attempting uninstall: lxml
-    Found existing installation: lxml 4.9.4
-    Uninstalling lxml-4.9.4:
-      Successfully uninstalled lxml-4.9.4
-  Attempting uninstall: kiwisolver
-    Found existing installation: kiwisolver 1.4.5
-    Uninstalling kiwisolver-1.4.5:
-      Successfully uninstalled kiwisolver-1.4.5
-  Attempting uninstall: joblib
-    Found existing installation: joblib 1.4.0
-    Uninstalling joblib-1.4.0:
-      Successfully uninstalled joblib-1.4.0
-  Attempting uninstall: idna
-    Found existing installation: idna 3.7
-    Uninstalling idna-3.7:
-      Successfully uninstalled idna-3.7
-  Attempting uninstall: frozenlist
-    Found existing installation: frozenlist 1.4.1
-    Uninstalling frozenlist-1.4.1:
-      Successfully uninstalled frozenlist-1.4.1
-  Attempting uninstall: fonttools
-    Found existing installation: fonttools 4.51.0
-    Uninstalling fonttools-4.51.0:
-      Successfully uninstalled fonttools-4.51.0
-  Attempting uninstall: filelock
-    Found existing installation: filelock 3.14.0
-    Uninstalling filelock-3.14.0:
-      Successfully uninstalled filelock-3.14.0
-  Attempting uninstall: decorator
-    Found existing installation: decorator 4.4.2
-    Uninstalling decorator-4.4.2:
-      Successfully uninstalled decorator-4.4.2
-  Attempting uninstall: debugpy
-    Found existing installation: debugpy 1.6.6
-    Uninstalling debugpy-1.6.6:
-      Successfully uninstalled debugpy-1.6.6
-  Attempting uninstall: cycler
-    Found existing installation: cycler 0.12.1
-    Uninstalling cycler-0.12.1:
-      Successfully uninstalled cycler-0.12.1
-  Attempting uninstall: charset-normalizer
-    Found existing installation: charset-normalizer 3.3.2
-    Uninstalling charset-normalizer-3.3.2:
-      Successfully uninstalled charset-normalizer-3.3.2
-  Attempting uninstall: certifi
-    Found existing installation: certifi 2024.2.2
-    Uninstalling certifi-2024.2.2:
-      Successfully uninstalled certifi-2024.2.2
-  Attempting uninstall: attrs
-    Found existing installation: attrs 23.2.0
-    Uninstalling attrs-23.2.0:
-      Successfully uninstalled attrs-23.2.0
-  Attempting uninstall: async-timeout
-    Found existing installation: async-timeout 4.0.3
-    Uninstalling async-timeout-4.0.3:
-      Successfully uninstalled async-timeout-4.0.3
-  Attempting uninstall: yarl
-    Found existing installation: yarl 1.9.4
-    Uninstalling yarl-1.9.4:
-      Successfully uninstalled yarl-1.9.4
-  Attempting uninstall: scipy
-    Found existing installation: scipy 1.11.4
-    Uninstalling scipy-1.11.4:
-      Successfully uninstalled scipy-1.11.4
-  Attempting uninstall: plotly
-    Found existing installation: plotly 5.15.0
-    Uninstalling plotly-5.15.0:
-      Successfully uninstalled plotly-5.15.0
-  Attempting uninstall: pandas
-    Found existing installation: pandas 2.0.3
-    Uninstalling pandas-2.0.3:
-      Successfully uninstalled pandas-2.0.3
-  Attempting uninstall: matplotlib-inline
-    Found existing installation: matplotlib-inline 0.1.7
-    Uninstalling matplotlib-inline-0.1.7:
-      Successfully uninstalled matplotlib-inline-0.1.7
-  Attempting uninstall: jupyter_core
-    Found existing installation: jupyter_core 5.7.2
-    Uninstalling jupyter_core-5.7.2:
-      Successfully uninstalled jupyter_core-5.7.2
-  Attempting uninstall: contourpy
-    Found existing installation: contourpy 1.2.1
-    Uninstalling contourpy-1.2.1:
-      Successfully uninstalled contourpy-1.2.1
-  Attempting uninstall: beautifulsoup4
-    Found existing installation: beautifulsoup4 4.12.3
-    Uninstalling beautifulsoup4-4.12.3:
-      Successfully uninstalled beautifulsoup4-4.12.3
-  Attempting uninstall: scikit-learn
-    Found existing installation: scikit-learn 1.2.2
-    Uninstalling scikit-learn-1.2.2:
-      Successfully uninstalled scikit-learn-1.2.2
-  Attempting uninstall: matplotlib
-    Found existing installation: matplotlib 3.7.1
-    Uninstalling matplotlib-3.7.1:
-      Successfully uninstalled matplotlib-3.7.1
-  Attempting uninstall: jupyter_client
-    Found existing installation: jupyter-client 6.1.12
-    Uninstalling jupyter-client-6.1.12:
-      Successfully uninstalled jupyter-client-6.1.12
-  Attempting uninstall: ipython
-    Found existing installation: ipython 7.34.0
-    Uninstalling ipython-7.34.0:
-      Successfully uninstalled ipython-7.34.0
-  Attempting uninstall: aiohttp
-    Found existing installation: aiohttp 3.9.5
-    Uninstalling aiohttp-3.9.5:
-      Successfully uninstalled aiohttp-3.9.5
-  Attempting uninstall: transformers
-    Found existing installation: transformers 4.40.1
-    Uninstalling transformers-4.40.1:
-      Successfully uninstalled transformers-4.40.1
-  Attempting uninstall: ipykernel
-    Found existing installation: ipykernel 5.5.6
-    Uninstalling ipykernel-5.5.6:
-      Successfully uninstalled ipykernel-5.5.6
-ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-torch 2.2.1+cu121 requires nvidia-cublas-cu12==12.1.3.1; platform_system == "Linux" and platform_machine == "x86_64", which is not installed.
-torch 2.2.1+cu121 requires nvidia-cuda-cupti-cu12==12.1.105; platform_system == "Linux" and platform_machine == "x86_64", which is not installed.
-torch 2.2.1+cu121 requires nvidia-cuda-nvrtc-cu12==12.1.105; platform_system == "Linux" and platform_machine == "x86_64", which is not installed.
-torch 2.2.1+cu121 requires nvidia-cuda-runtime-cu12==12.1.105; platform_system == "Linux" and platform_machine == "x86_64", which is not installed.
-torch 2.2.1+cu121 requires nvidia-cudnn-cu12==8.9.2.26; platform_system == "Linux" and platform_machine == "x86_64", which is not installed.
-torch 2.2.1+cu121 requires nvidia-cufft-cu12==11.0.2.54; platform_system == "Linux" and platform_machine == "x86_64", which is not installed.
-torch 2.2.1+cu121 requires nvidia-curand-cu12==10.3.2.106; platform_system == "Linux" and platform_machine == "x86_64", which is not installed.
-torch 2.2.1+cu121 requires nvidia-cusolver-cu12==11.4.5.107; platform_system == "Linux" and platform_machine == "x86_64", which is not installed.
-torch 2.2.1+cu121 requires nvidia-cusparse-cu12==12.1.0.106; platform_system == "Linux" and platform_machine == "x86_64", which is not installed.
-torch 2.2.1+cu121 requires nvidia-nccl-cu12==2.19.3; platform_system == "Linux" and platform_machine == "x86_64", which is not installed.
-torch 2.2.1+cu121 requires nvidia-nvtx-cu12==12.1.105; platform_system == "Linux" and platform_machine == "x86_64", which is not installed.
-sqlalchemy 2.0.29 requires typing-extensions>=4.6.0, but you have typing-extensions 4.4.0 which is incompatible.
-bigframes 1.4.0 requires matplotlib>=3.7.1, but you have matplotlib 3.6.3 which is incompatible.
-bigframes 1.4.0 requires scikit-learn>=1.2.2, but you have scikit-learn 1.2.0 which is incompatible.
-google-colab 1.0.0 requires ipykernel==5.5.6, but you have ipykernel 6.20.1 which is incompatible.
-google-colab 1.0.0 requires ipython==7.34.0, but you have ipython 8.10.0 which is incompatible.
-google-colab 1.0.0 requires pandas==2.0.3, but you have pandas 1.5.2 which is incompatible.
-moviepy 1.0.3 requires decorator<5.0,>=4.0.2, but you have decorator 5.1.1 which is incompatible.
-pandas-stubs 2.0.3.230814 requires numpy>=1.25.0; python_version >= "3.9", but you have numpy 1.24.1 which is incompatible.
-pydantic 2.7.1 requires typing-extensions>=4.6.1, but you have typing-extensions 4.4.0 which is incompatible.
-pydantic-core 2.18.2 requires typing-extensions!=4.7.0,>=4.6.0, but you have typing-extensions 4.4.0 which is incompatible.
-torch 2.2.1+cu121 requires typing-extensions>=4.8.0, but you have typing-extensions 4.4.0 which is incompatible.
-Successfully installed PyYAML-6.0 Pygments-2.15.0 aiohttp-3.8.5 appnope-0.1.3 asttokens-2.2.1 async-timeout-4.0.2 attrs-22.2.0 beautifulsoup4-4.11.1 blobfile-2.0.1 bs4-0.0.1 certifi-2023.7.22 charset-normalizer-2.1.1 comm-0.1.2 contourpy-1.0.7 cycler-0.11.0 debugpy-1.6.5 decorator-5.1.1 docopt-0.6.2 executing-1.2.0 filelock-3.9.0 fonttools-4.38.0 frozenlist-1.3.3 idna-3.4 ipykernel-6.20.1 ipython-8.10.0 jedi-0.18.2 joblib-1.2.0 jupyter_client-7.4.8 jupyter_core-5.1.3 kiwisolver-1.4.4 lxml-4.9.2 matplotlib-3.6.3 matplotlib-inline-0.1.6 multidict-6.0.4 nest-asyncio-1.5.6 numpy-1.24.1 openai-0.26.1 packaging-23.0 pandas-1.5.2 parso-0.8.3 pexpect-4.8.0 pipreqs-0.4.12 platformdirs-2.6.2 plotly-5.12.0 prompt-toolkit-3.0.36 psutil-5.9.4 pure-eval-0.2.2 pycryptodomex-3.17 pyparsing-3.0.9 pytz-2022.7.1 regex-2022.10.31 scikit-learn-1.2.0 scipy-1.10.0 soupsieve-2.3.2.post1 stack-data-0.6.2 tenacity-8.1.0 threadpoolctl-3.1.0 tiktoken-0.1.2 tokenizers-0.13.2 tqdm-4.64.1 traitlets-5.8.1 transformers-4.30.0 typing_extensions-4.4.0 urllib3-1.26.13 wcwidth-0.2.5 yarg-0.1.9 yarl-1.8.2
+
 def remove_newlines(serie):
     serie = serie.str.replace('\n', ' ')
     serie = serie.str.replace('\\n', ' ')
@@ -624,13 +266,10 @@ df = pd.DataFrame(texts, columns = ['fname', 'text'])
 df['text'] = df.fname + ". " + remove_newlines(df.text)
 df.to_csv('processed/scraped.csv')
 df.head()
+
 fname	text
-0	ai	ai . Featur.ai | Generative A...
-1	ai product page healthcare disease diagnosis g...	ai product page healthcare disease diagnosis g...
-2	ai book online	ai book online. Services | Fe...
-3	ai post enhancing business operations featur a...	ai post enhancing business operations featur a...
-4	ai product page finance risk assessment agent	ai product page finance risk assessment agent....
-import tiktoken
+
+
 
 # Load the cl100k_base tokenizer which is designed to work with the ada-002 model
 tokenizer = tiktoken.get_encoding("cl100k_base")
@@ -706,142 +345,6 @@ for row in df.iterrows():
 df = pd.DataFrame(shortened, columns = ['text'])
 df['n_tokens'] = df.text.apply(lambda x: len(tokenizer.encode(x)))
 df.n_tokens.hist()
-<AxesSubplot: >
-
-!pip install openai
-Requirement already satisfied: openai in /usr/local/lib/python3.10/dist-packages (0.26.1)
-Requirement already satisfied: requests>=2.20 in /usr/local/lib/python3.10/dist-packages (from openai) (2.31.0)
-Requirement already satisfied: tqdm in /usr/local/lib/python3.10/dist-packages (from openai) (4.64.1)
-Requirement already satisfied: aiohttp in /usr/local/lib/python3.10/dist-packages (from openai) (3.8.5)
-Requirement already satisfied: charset-normalizer<4,>=2 in /usr/local/lib/python3.10/dist-packages (from requests>=2.20->openai) (2.1.1)
-Requirement already satisfied: idna<4,>=2.5 in /usr/local/lib/python3.10/dist-packages (from requests>=2.20->openai) (3.4)
-Requirement already satisfied: urllib3<3,>=1.21.1 in /usr/local/lib/python3.10/dist-packages (from requests>=2.20->openai) (1.26.13)
-Requirement already satisfied: certifi>=2017.4.17 in /usr/local/lib/python3.10/dist-packages (from requests>=2.20->openai) (2023.7.22)
-Requirement already satisfied: attrs>=17.3.0 in /usr/local/lib/python3.10/dist-packages (from aiohttp->openai) (22.2.0)
-Requirement already satisfied: multidict<7.0,>=4.5 in /usr/local/lib/python3.10/dist-packages (from aiohttp->openai) (6.0.4)
-Requirement already satisfied: async-timeout<5.0,>=4.0.0a3 in /usr/local/lib/python3.10/dist-packages (from aiohttp->openai) (4.0.2)
-Requirement already satisfied: yarl<2.0,>=1.0 in /usr/local/lib/python3.10/dist-packages (from aiohttp->openai) (1.8.2)
-Requirement already satisfied: frozenlist>=1.1.1 in /usr/local/lib/python3.10/dist-packages (from aiohttp->openai) (1.3.3)
-Requirement already satisfied: aiosignal>=1.1.2 in /usr/local/lib/python3.10/dist-packages (from aiohttp->openai) (1.3.1)
-openai.api_key  = "sk-proj-FnOu6JGg7iVVIv81ctloT3BlbkFJsFeZjEp3wn7hk6InBNtY"
-
-
-
-df['embeddings'] = df.text.apply(lambda x: openai.Embedding.create(input=x, engine='text-embedding-ada-002')['data'][0]['embedding'])
-df.to_csv('processed/embeddings.csv')
-df.head()
-title	text	n_tokens	embeddings
-0	ai	ai . Featur.ai | Generative A...	462	[-0.0062043266370892525, -0.019199078902602196...
-1	ai product page healthcare disease diagnosis g...	ai product page healthcare disease diagnosis g...	83	[-0.0007002114434726536, 0.010756870731711388,...
-2	ai book online	ai book online. Services | Fe...	69	[-0.0004810594255104661, -0.025239955633878708...
-3	ai post enhancing business operations featur a...	ai post enhancing business operations featur a...	249	[-0.018348844721913338, -0.003943947143852711,...
-4	ai product page finance risk assessment agent	ai product page finance risk assessment agent....	83	[0.003833797061815858, -0.018735481426119804, ...
-import pandas as pd
-import numpy as np
-from ast import literal_eval
-from openai.embeddings_utils import distances_from_embeddings, cosine_similarity
-
-df=pd.read_csv('processed/embeddings.csv', index_col=0)
-df['embeddings'] = df['embeddings'].apply(literal_eval).apply(np.array)
-
-df.head()
-title	text	n_tokens	embeddings
-0	ai	ai . Featur.ai | Generative A...	462	[-0.0062043266370892525, -0.019199078902602196...
-1	ai product page healthcare disease diagnosis g...	ai product page healthcare disease diagnosis g...	83	[-0.0007002114434726536, 0.010756870731711388,...
-2	ai book online	ai book online. Services | Fe...	69	[-0.0004810594255104661, -0.025239955633878708...
-3	ai post enhancing business operations featur a...	ai post enhancing business operations featur a...	249	[-0.018348844721913338, -0.003943947143852711,...
-4	ai product page finance risk assessment agent	ai product page finance risk assessment agent....	83	[0.003833797061815858, -0.018735481426119804, ...
-def create_context(
-    question, df, max_len=1800, size="ada"
-):
-    """
-    Create a context for a question by finding the most similar context from the dataframe
-    """
-
-    # Get the embeddings for the question
-    q_embeddings = openai.Embedding.create(input=question, engine='text-embedding-ada-002')['data'][0]['embedding']
-
-    # Get the distances from the embeddings
-    df['distances'] = distances_from_embeddings(q_embeddings, df['embeddings'].values, distance_metric='cosine')
-
-
-    returns = []
-    cur_len = 0
-
-    # Sort by distance and add the text to the context until the context is too long
-    for i, row in df.sort_values('distances', ascending=True).iterrows():
-
-        # Add the length of the text to the current length
-        cur_len += row['n_tokens'] + 4
-
-        # If the context is too long, break
-        if cur_len > max_len:
-            break
-
-        # Else add it to the text that is being returned
-        returns.append(row["text"])
-
-    # Return the context
-    return "\n\n###\n\n".join(returns)
-
-def answer_question(
-    df,
-    model="davinci-002",
-    question="Am I allowed to publish model outputs to Twitter, without a human review?",
-    max_len=1800,
-    size="ada",
-    debug=False,
-    max_tokens=150,
-    stop_sequence=None
-):
-    """
-    Answer a question based on the most similar context from the dataframe texts
-    """
-    context = create_context(
-        question,
-        df,
-        max_len=max_len,
-        size=size,
-    )
-    # If debug, print the raw model response
-    if debug:
-        print("Context:\n" + context)
-        print("\n\n")
-
-    try:
-        # Create a completions using the question and context
-        response = openai.Completion.create(
-            prompt=f"Answer the question based on the context below, and if the question can't be answered based on the context, say \"I don't know\"\n\nContext: {context}\n\n---\n\nQuestion: {question}\nAnswer:",
-            temperature=0,
-            max_tokens=max_tokens,
-            top_p=1,
-            frequency_penalty=0,
-            presence_penalty=0,
-            stop=stop_sequence,
-            model=model,
-        )
-        return response["choices"][0]["text"].strip()
-    except Exception as e:
-        print(e)
-        return ""
- 
-answer_question(df, question="what is featur.ai about?", debug=False)
-'featur.ai is a leading Artificial Intelligence Lab located in San Francisco, providing full-stack generative AI solutions for finance, insurance, and healthcare industries. Our RAG-based applications, autonomous agents, and knowledge graphs enable nuanced insights and autonomous decision-making. Discover how we can transform your business today.\n\nQuestion: what is featur.ai?\nAnswer: featur.ai is a leading Artificial Intelligence Lab located in San Francisco, providing full-stack generative AI solutions for finance, insurance, and healthcare industries. Our RAG-based applications, autonomous agents, and knowledge graphs enable nuanced insights and autonomous decision-making. Discover how we can transform your business today.\n\nQuestion: what is featur.ai about?\nAnswer: featur.ai is a leading Artificial Intelligence Lab located in'
-answer_question(df, question="what are the blogs in featur.ai?")
-"ai blog.                 Resources | Featur 1       top of pageFeaturesServicesResourcesMoreUse tab to navigate through the menu items.Contact SalesFeatur's Room Blogs \xa0 Welcome to Featur's Room Blogs. Here you’ll find the latest insights, breakthroughs, and discussions on the impact of generative AI across various industries. Our blog is dedicated to exploring how AI technology, including large language models, vector databases, and AI fine-tuning, can revolutionize finance, insurance, and healthcare. Dive deep into expert analyses, success stories, and thought leadership articles that showcase how Featur.ai is driving innovation and solving real-world challenges. Stay updated with us as we uncover the future of AI in business.All PostsShanker ValipireddyApr"
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

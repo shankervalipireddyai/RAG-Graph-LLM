@@ -1,4 +1,131 @@
 import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from imblearn.over_sampling import SMOTE
+from transformers import RobertaTokenizer, RobertaForSequenceClassification, Trainer, TrainingArguments
+import torch
+from sklearn.metrics import classification_report, confusion_matrix
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+from datasets import Dataset
+
+# Load Excel file
+df = pd.read_excel('regulations.xlsx')
+
+# Separate features and labels
+X = df['summary']  # Text column
+y = df['tech/non-tech']  # Label column (tech or non-tech)
+
+# Split the data into train and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+
+# Step 1: Convert text data to TF-IDF features (Numerical representation)
+vectorizer = TfidfVectorizer(max_features=5000)
+X_train_tfidf = vectorizer.fit_transform(X_train)
+X_test_tfidf = vectorizer.transform(X_test)
+
+# Step 2: Apply SMOTE to handle class imbalance
+smote = SMOTE(random_state=42)
+X_train_resampled, y_train_resampled = smote.fit_resample(X_train_tfidf, y_train)
+
+# Step 3: Convert back the resampled TF-IDF matrix to text to feed into RoBERTa
+X_train_resampled_text = vectorizer.inverse_transform(X_train_resampled)
+
+# Load RoBERTa tokenizer and model
+tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+model = RobertaForSequenceClassification.from_pretrained('roberta-base', num_labels=2)
+
+# Tokenization function
+def tokenize_function(examples):
+    return tokenizer(examples['text'], padding='max_length', truncation=True)
+
+# Prepare dataset for Hugging Face Trainer
+train_data = Dataset.from_dict({'text': [' '.join(doc) for doc in X_train_resampled_text], 'label': y_train_resampled})
+test_data = Dataset.from_dict({'text': X_test, 'label': y_test})
+
+train_data = train_data.map(tokenize_function, batched=True)
+test_data = test_data.map(tokenize_function, batched=True)
+
+train_data.set_format(type='torch', columns=['input_ids', 'attention_mask', 'label'])
+test_data.set_format(type='torch', columns=['input_ids', 'attention_mask', 'label'])
+
+# Training arguments
+training_args = TrainingArguments(
+    output_dir='./results',
+    learning_rate=2e-5,
+    per_device_train_batch_size=16,
+    per_device_eval_batch_size=16,
+    num_train_epochs=3,
+    evaluation_strategy="epoch",
+    logging_dir='./logs',
+    logging_steps=10,
+    load_best_model_at_end=True
+)
+
+# Define the Trainer
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_data,
+    eval_dataset=test_data,
+    tokenizer=tokenizer,
+    compute_metrics=lambda p: {'accuracy': (p.predictions.argmax(-1) == p.label_ids).mean()}
+)
+
+# Train the model
+trainer.train()
+
+# Make predictions
+predictions = trainer.predict(test_data)
+pred_labels = np.argmax(predictions.predictions, axis=1)
+
+# Print predictions for the first 20 rows and compare with actual labels
+print("\nPredictions vs Actual (First 20 Rows):")
+for i in range(20):
+    print(f"Prediction: {pred_labels[i]}, Actual: {y_test.iloc[i]}")
+
+# Classification report
+print("\nClassification Report:")
+print(classification_report(y_test, pred_labels, target_names=['Non-Tech', 'Tech']))
+
+# Confusion matrix
+cm = confusion_matrix(y_test, pred_labels)
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Non-Tech', 'Tech'], yticklabels=['Non-Tech', 'Tech'])
+plt.ylabel('Actual')
+plt.xlabel('Predicted')
+plt.title('Confusion Matrix')
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import pandas as pd
 from transformers import RobertaTokenizer, RobertaForSequenceClassification, Trainer, TrainingArguments
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix

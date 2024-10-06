@@ -1,4 +1,167 @@
 import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+from imblearn.over_sampling import SMOTE
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.svm import SVC
+from cuml.ensemble import RandomForestClassifier as cuRF
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+# Load Excel file
+df = pd.read_excel('regulations.xlsx')
+
+# Analyze label imbalance
+class_counts = df['tech/non-tech'].value_counts()
+print("\nClass distribution (Tech vs Non-Tech):")
+print(class_counts)
+
+# Visualize class distribution
+plt.figure(figsize=(6, 4))
+sns.barplot(x=class_counts.index, y=class_counts.values, palette='Blues')
+plt.title("Class Distribution of Tech vs Non-Tech")
+plt.ylabel('Number of Documents')
+plt.xlabel('Class')
+plt.show()
+
+# Handle the imbalance using SMOTE (oversample the minority class)
+X = df['summary']  # Text column
+y = df['tech/non-tech']  # Label column (tech or non-tech)
+
+# Split the data into train and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+
+# Convert text data to TF-IDF features
+vectorizer = TfidfVectorizer(max_features=5000)
+X_train_tfidf = vectorizer.fit_transform(X_train)
+X_test_tfidf = vectorizer.transform(X_test)
+
+# Apply SMOTE to oversample the minority class
+smote = SMOTE(random_state=42)
+X_train_resampled, y_train_resampled = smote.fit_resample(X_train_tfidf, y_train)
+
+# Check the distribution after SMOTE
+resampled_class_counts = pd.Series(y_train_resampled).value_counts()
+print("\nClass distribution after SMOTE (Tech vs Non-Tech):")
+print(resampled_class_counts)
+
+# Visualize the class distribution after SMOTE
+plt.figure(figsize=(6, 4))
+sns.barplot(x=resampled_class_counts.index, y=resampled_class_counts.values, palette='Greens')
+plt.title("Class Distribution After SMOTE")
+plt.ylabel('Number of Documents')
+plt.xlabel('Class')
+plt.show()
+
+# Naive Bayes (CPU-bound)
+nb = MultinomialNB()
+
+# GPU-based SVM using cuML
+svm = SVC(probability=True, class_weight='balanced')  # Use balanced class weights to handle imbalance
+
+# GPU-based Random Forest using cuML
+rf = cuRF(n_estimators=100)
+
+# PyTorch-based ANN (GPU)
+class SimpleANN(nn.Module):
+    def __init__(self, input_dim):
+        super(SimpleANN, self).__init__()
+        self.fc1 = nn.Linear(input_dim, 100)
+        self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(100, 2)
+    
+    def forward(self, x):
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.fc2(x)
+        return x
+
+# Prepare PyTorch model
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+input_dim = X_train_tfidf.shape[1]
+model = SimpleANN(input_dim).to(device)
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+# Convert TF-IDF sparse matrices to dense format for PyTorch
+X_train_tensor = torch.tensor(X_train_resampled.toarray(), dtype=torch.float32).to(device)
+y_train_tensor = torch.tensor(y_train_resampled.values, dtype=torch.long).to(device)
+
+# Train ANN model
+num_epochs = 10
+for epoch in range(num_epochs):
+    model.train()
+    optimizer.zero_grad()
+    outputs = model(X_train_tensor)
+    loss = criterion(outputs, y_train_tensor)
+    loss.backward()
+    optimizer.step()
+    print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}")
+
+# Predictions from Naive Bayes, SVM, Random Forest, and ANN
+X_test_dense = X_test_tfidf.toarray()  # Convert to dense format for PyTorch
+
+# Predictions from each model
+nb_pred = nb.fit(X_train_resampled.toarray(), y_train_resampled).predict(X_test_dense)
+svm_pred = svm.fit(X_train_resampled, y_train_resampled).predict(X_test_tfidf)
+rf_pred = rf.fit(X_train_resampled, y_train_resampled).predict(X_test_tfidf)
+
+# PyTorch ANN predictions
+model.eval()
+X_test_tensor = torch.tensor(X_test_dense, dtype=torch.float32).to(device)
+with torch.no_grad():
+    ann_pred_proba = model(X_test_tensor)
+ann_pred = torch.argmax(ann_pred_proba, dim=1).cpu().numpy()
+
+# Combine predictions using majority voting
+final_pred = np.array([np.bincount([nb_pred[i], svm_pred[i], rf_pred[i], ann_pred[i]]).argmax() for i in range(len(nb_pred))])
+
+# Print predictions for the first 20 rows along with the actual labels
+print("\nPredictions vs Actual (First 20 Rows):")
+for i in range(20):
+    print(f"Prediction: {final_pred[i]}, Actual: {y_test.iloc[i]}")
+
+# Classification report and confusion matrix
+print("\nClassification Report:")
+print(classification_report(y_test, final_pred, target_names=['Non-Tech', 'Tech']))
+
+# Confusion Matrix
+cm = confusion_matrix(y_test, final_pred)
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=['Non-Tech', 'Tech'], yticklabels=['Non-Tech', 'Tech'])
+plt.ylabel('Actual')
+plt.xlabel('Predicted')
+plt.title('Confusion Matrix')
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import pandas as pd
 from imblearn.over_sampling import SMOTE
 from sklearn.model_selection import train_test_split
 from cuml.svm import SVC as cuSVC

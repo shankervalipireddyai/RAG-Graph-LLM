@@ -15,6 +15,146 @@ df = pd.read_excel('regulations.xlsx')
 X = df['summary']
 y = df['tech/non-tech']
 
+# Create label dictionary
+label_dict = {'Non-Tech': 0, 'Tech': 1}
+reverse_label_dict = {v: k for k, v in label_dict.items()}
+
+# Convert string labels to integer labels
+y = y.map(label_dict)
+
+# Split the data into train and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+
+# Initialize tokenizer
+tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+
+# Tokenization function
+def tokenize_function(examples):
+    return tokenizer(
+        examples['text'],
+        padding='max_length',
+        truncation=True,
+        max_length=512,
+    )
+
+# Prepare datasets
+train_data = Dataset.from_dict({'text': X_train.tolist(), 'label': y_train.tolist()})
+test_data = Dataset.from_dict({'text': X_test.tolist(), 'label': y_test.tolist()})
+
+# Tokenize datasets
+train_data = train_data.map(tokenize_function, batched=True, remove_columns=['text'])
+test_data = test_data.map(tokenize_function, batched=True, remove_columns=['text'])
+
+# Rename 'label' to 'labels' as expected by the model
+train_data = train_data.rename_column('label', 'labels')
+test_data = test_data.rename_column('label', 'labels')
+
+# Initialize model
+model = RobertaForSequenceClassification.from_pretrained('roberta-base', num_labels=2)
+
+# Define training arguments
+training_args = TrainingArguments(
+    output_dir='./results',
+    learning_rate=2e-5,
+    per_device_train_batch_size=16,
+    per_device_eval_batch_size=16,
+    num_train_epochs=3,
+    evaluation_strategy="epoch",
+    save_strategy="epoch",
+    logging_dir='./logs',
+    logging_steps=10,
+    load_best_model_at_end=True,
+    metric_for_best_model='f1',
+    greater_is_better=True
+)
+
+# Define compute_metrics function
+def compute_metrics(eval_pred):
+    logits, labels = eval_pred
+    predictions = np.argmax(logits, axis=-1)
+    return {
+        'accuracy': (predictions == labels).mean(),
+        'f1': f1_score(labels, predictions, average='weighted')
+    }
+
+# Initialize trainer
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_data,
+    eval_dataset=test_data,
+    tokenizer=tokenizer,
+    compute_metrics=compute_metrics
+)
+
+# Train the model
+trainer.train()
+
+# Make predictions and evaluate
+predictions = trainer.predict(test_data)
+pred_labels = np.argmax(predictions.predictions, axis=1)
+
+# Print predictions for the first 20 rows
+print("\nPredictions vs Actual (First 20 Rows):")
+for i in range(20):
+    print(f"Prediction: {reverse_label_dict[pred_labels[i]]}, Actual: {reverse_label_dict[y_test.iloc[i]]}")
+
+# Classification report
+print("\nClassification Report:")
+print(classification_report(y_test, pred_labels, target_names=list(label_dict.keys())))
+
+# Confusion matrix
+cm = confusion_matrix(y_test, pred_labels)
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=list(label_dict.keys()), yticklabels=list(label_dict.keys()))
+plt.ylabel('Actual')
+plt.xlabel('Predicted')
+plt.title('Confusion Matrix')
+plt.show()
+
+# Print class distribution
+print("\nClass Distribution:")
+print(y.map(reverse_label_dict).value_counts(normalize=True))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from transformers import RobertaTokenizer, RobertaForSequenceClassification, Trainer, TrainingArguments
+from datasets import Dataset
+from sklearn.metrics import classification_report, confusion_matrix, f1_score
+import seaborn as sns
+import matplotlib.pyplot as plt
+import torch
+
+# Load Excel file
+df = pd.read_excel('regulations.xlsx')
+
+# Separate features and labels
+X = df['summary']
+y = df['tech/non-tech']
+
 # Split the data into train and test sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 

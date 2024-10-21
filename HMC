@@ -1,4 +1,45 @@
 
+August 30 – September 2: Balanced Dataset for Procedures
+•	Objective: Prepare a balanced dataset by restricting sentences per procedure to 20 rows.
+•	Details:
+o	Identified data imbalance with 200 procedures, some highly underrepresented.
+o	Wrote code to restrict large classes to 20 sentences per procedure.
+o	Verified distribution using visual charts (U-shaped imbalance vs. balanced backslash-shaped).
+•	Challenge: Struggled to handle label overlap where sentences mapped to multiple labels.
+•	Outcome: Model ready for initial training with a balanced subset.
+________________________________________
+September 2 – September 22: Fine-Tuning RoBERTa/BERT Models
+•	Objective: Train RoBERTa/BERT models with 5k sentences and 200 procedures.
+•	Details:
+o	Used MultiLabelBinarizer (MLB) to handle multi-label sentences.
+o	Encountered error: Labels column size mismatch (expected 22k, only got 221 unique procedures).
+o	Trained with multiple settings, but F1 score remained very low (~0.003).
+•	Challenge: Struggled to improve predictions even with balanced datasets and multiple hyperparameters.
+•	Solution Attempts:
+1.	Considered using NER and knowledge graphs to improve semantic understanding.
+2.	Experimented with tokenization strategies but no meaningful impact on performance.
+
+
+October 4: Tech/Non-Tech Classification using RoBERTa
+•	Objective: Classify documents as tech or not tech.
+•	Details:
+o	Dataset: 259 tech docs vs. 59,000 non-tech PDFs.
+o	Class imbalance identified as the primary challenge.
+o	Trained with RoBERTa base model but faced accuracy issues due to the skew.
+•	Challenge: Need for further balancing or resampling to address class imbalance.
+•	Outcome: Task completed, but further experimentation needed to optimize results.
+October 18: Debugging Prediction Scores with RoBERTa
+•	Objective: Identify why RoBERTa is returning low prediction scores (~0.04).
+•	Details:
+o	Checked tokenization and input encoding using detailed logs.
+o	Suggested using weighted loss functions (BCEWithLogitsLoss) to handle class imbalance.
+o	Monitored model gradients to detect potential issues in parameter updates.
+•	Challenge: Despite efforts, the F1 score remained low.
+•	Next Steps: Implement knowledge graphs or NER for domain-specific improvements.
+
+
+
+
 aiohttp==3.8.5
 aiosignal==1.3.1
 appnope==0.1.3

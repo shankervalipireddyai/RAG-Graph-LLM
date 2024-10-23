@@ -1,4 +1,198 @@
 
+!pip install langchain langchain-community openai PyPDF2 PyMuPDF langchain-openai
+
+
+
+import pymupdf as fitz  # PyMuPDF
+import os
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage
+import time
+
+# Set your OpenAI API key
+os.environ["OPENAI_API_KEY"] = ""
+
+# Path to your PDF file
+pdf_path = "/content/data/CELEX_32019R0881_EN_TXT.pdf"
+
+# Open the PDF file
+doc = fitz.open(pdf_path)
+
+# Function to split text into chunks
+def split_text(text, chunk_size=2000):
+    return [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
+
+# Initialize the language model
+llm = ChatOpenAI(
+    model_name="gpt-3.5-turbo",
+    temperature=0,
+    max_tokens=1000
+)
+
+# Process the PDF in chunks
+highlighted_phrases = []
+for page in doc:
+    text = page.get_text()
+    chunks = split_text(text)
+    
+    for chunk in chunks:
+        prompt = f"""You are a regulatory finance technical specialist. Analyze the following text from a PDF document and identify phrases or sentences that indicate financial technical regulatory content. List only the relevant phrases or sentences, separated by newlines.
+
+        Text:
+        {chunk}
+
+        Relevant phrases:"""
+
+        try:
+            response = llm([HumanMessage(content=prompt)])
+            highlighted_phrases.extend(response.content.split('\n'))
+            time.sleep(1)  # Add a delay to avoid rate limiting
+        except Exception as e:
+            print(f"Error processing chunk: {e}")
+            time.sleep(60)  # Wait longer if we hit an error
+
+# Highlight sections in the PDF and extract highlighted text
+extracted_highlights = []
+for page_number, page in enumerate(doc):
+    for phrase in highlighted_phrases:
+        if phrase.strip():
+            areas = page.search_for(phrase.strip())
+            for area in areas:
+                highlight = page.add_highlight_annot(area)
+                highlight.update()
+                
+                # Extract the highlighted text and its context
+                words = page.get_text("words")
+                highlight_rect = fitz.Rect(area)
+                context_rect = highlight_rect + (-50, -20, 50, 20)  # Expand the area slightly
+                context_text = " ".join(word[4] for word in words if fitz.Rect(word[:4]).intersects(context_rect))
+                
+                extracted_highlights.append({
+                    'page': page_number + 1,
+                    'text': context_text,
+                    'rect': highlight_rect
+                })
+
+# Save the modified PDF with highlights
+output_pdf_path = "/content/data/highlighted_CELEX_32019R0881_EN_TXT.pdf"
+doc.save(output_pdf_path)
+print(f"Highlighted PDF saved at {output_pdf_path}")
+
+# Save extracted highlights to a text file
+output_text_path = "/content/data/extracted_highlights.xls"
+with open(output_text_path, 'w', encoding='utf-8') as f:
+    for highlight in extracted_highlights:
+        f.write(f"Page {highlight['page']}:\n")
+        f.write(f"Text: {highlight['text']}\n")
+        f.write(f"Location: {highlight['rect']}\n\n")
+
+print(f"Extracted highlights saved at {output_text_path}")
+
+# Close the document
+doc.close()
+
+
+
+
+
+
+
+
+
+import os
+from pathlib import Path
+from PyPDF2 import PdfReader
+from langchain_community.chat_models import ChatOpenAI
+from langchain_core.messages import HumanMessage
+import time
+
+# Set your OpenAI API key
+os.environ["OPENAI_API_KEY"] = ""
+
+# Path to your PDF file
+pdf_path = Path("/content/CELEX_32019R0881_EN_TXT.pdf")
+
+# Function to read the entire PDF content
+def read_pdf(file_path):
+    with open(file_path, 'rb') as file:
+        pdf_reader = PdfReader(file)
+        text = ''
+        for page in pdf_reader.pages:
+            text += page.extract_text()
+    return text
+
+# Read the entire PDF content
+pdf_content = read_pdf(pdf_path)
+
+# Create a ChatOpenAI instance with GPT-4 and 128k context
+llm = ChatOpenAI(
+    model_name="gpt-4-1106-preview",
+    temperature=0,
+    max_tokens=1000
+)
+
+# Function to split text into chunks
+def split_text(text, chunk_size=10000):
+    return [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
+
+# Split the PDF content into chunks
+chunks = split_text(pdf_content)
+
+# Analyze chunks
+results = []
+for i, chunk in enumerate(chunks):
+    prompt = f"""You are a regulatory finance technical specialist. Analyze the following text (chunk {i+1} of {len(chunks)}) from a PDF document and determine if it contains financial technical regulatory content.
+    Provide a brief explanation of your analysis, highlighting key indicators of financial technical regulatory content if present.
+    If the content is not related to financial technical regulations, briefly explain why.
+
+    Text chunk:
+    {chunk}
+
+    Question: Does this text chunk contain financial technical regulatory content?
+
+    Answer:"""
+
+    response = llm([HumanMessage(content=prompt)])
+    results.append(response.content)
+
+    # Sleep to avoid rate limiting
+    time.sleep(20)
+
+# Combine and analyze results
+final_prompt = f"""You are a regulatory finance technical specialist. You have analyzed multiple chunks of a PDF document for financial technical regulatory content. Based on the following analysis results, provide a final determination on whether the entire document contains financial technical regulatory content. Summarize the key findings and explain your conclusion.
+
+Analysis results:
+{' '.join(results)}
+
+Question: Based on these analyses, does the entire document contain financial technical regulatory content?
+
+Answer:"""
+
+final_response = llm([HumanMessage(content=final_prompt)])
+
+print("Final Analysis:")
+print(final_response.content)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 August 30 – September 2: Balanced Dataset for Procedures
 •	Objective: Prepare a balanced dataset by restricting sentences per procedure to 20 rows.
 •	Details:

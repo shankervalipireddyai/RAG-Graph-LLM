@@ -1,4 +1,110 @@
 
+
+
+import fitz  # PyMuPDF
+import re
+import time
+from langchain.chat_models import ChatOpenAI
+from langchain.schema import HumanMessage
+
+# Function to extract sentences from text
+def extract_sentences(text):
+    # Regex pattern to extract sentences
+    sentence_pattern = r'([A-Z][^.!?]*[.!?]+)'  # Matches sentences
+    sentences = re.findall(sentence_pattern, text)
+    return [s.strip() for s in sentences if s.strip()]
+
+# Load the PDF document
+pdf_path = "/content/data/2024-10hsgml.pdf"
+doc = fitz.open(pdf_path)
+
+# Initialize the language model
+llm = ChatOpenAI(
+    model_name="gpt-3.5-turbo",
+    temperature=0,
+    max_tokens=1000
+)
+
+# Iterate through each page
+for page_num in range(doc.page_count):
+    page = doc[page_num]
+    page_text = page.get_text()
+
+    # Extract sentences from the page
+    sentences = extract_sentences(page_text)
+    print(f"Page {page_num + 1} - Extracted Sentences:")
+    
+    # Find and print the location of each sentence
+    for sentence in sentences:
+        # Search for the sentence in the page
+        locations = page.search_for(sentence)
+        if locations:
+            print(f"Found sentence: '{sentence}' at locations: {locations}")
+
+            # Prepare the prompt for the LLM
+            prompt = f"""You are a regulatory finance technical specialist. Analyze the following text from a PDF document and identify if it indicates financial technical regulatory content. Respond with 'Yes' if it is regulatory and 'No' otherwise.
+
+            Text:
+            {sentence}
+
+            Is it regulatory content?"""
+
+            try:
+                # Get the LLM response
+                response = llm([HumanMessage(content=prompt)])
+                is_regulatory = response.content.strip().lower()
+
+                # Highlight the sentence only if it is regulatory
+                if is_regulatory == 'yes':
+                    for loc in locations:
+                        highlight = page.add_highlight_annot(loc)
+                        highlight.update()
+                        print(f"Highlighted regulatory sentence: '{sentence}'")
+                else:
+                    print(f"Non-regulatory sentence: '{sentence}'")
+
+                time.sleep(1)  # Add a delay to avoid rate limiting
+
+            except Exception as e:
+                print(f"Error processing sentence: {e}")
+                time.sleep(60)  # Wait longer if we hit an error
+
+# Save the modified PDF with highlights
+output_path = "/content/data/highlighted_phrases_and_2024-10hsgml.pdf"
+doc.save(output_path)
+doc.close()
+print(f"Saved highlighted PDF to {output_path}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 !pip install langchain langchain-community openai PyPDF2 PyMuPDF langchain-openai
 
 

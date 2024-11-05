@@ -1,3 +1,77 @@
+import fitz  # PyMuPDF
+import re
+
+# Load the PDF document
+pdf_path = "sample.pdf"
+highlighted_phrases = [
+    '- Cyber Incident Reporting',
+    '- SEBI circular No: SEBI/HO/MIRSD/TPD/P/CIR/2022/93 dated June 30, 2022',
+    '- Cyber-attacks, threats, cyber-incidents and breaches experienced by Stock Brokers / Depositories Participants shall be reported to Stock Exchanges / Depositories & SEBI within 6 hours',
+    '- The incident shall also be reported to Indian Computer Emergency Response team (CERT-In)',
+    '- Stock Brokers / Depository Participants, whose systems have been identified as “Protected system” by National Critical Information Infrastructure Protection Centre (NCIIPC) shall also report the incident to NCIIPC',
+    '- Participants shall report about such incidents to NSDL through the dedicated e-mail id: dpincidents@nsdl.com',
+    '- Investor Grievance Report (Monthly) By 10th of the following month Through e-PASS',
+    '- Para 20 of NSDL Master Circular for Participants on ‘Grievance Redressal’ chapter.',
+    '- Compliance Certificate (half yearly)',
+    '- Para 17 of NSDL Master Circular for Participants on ‘Internal Controls/Reporting to NSDL/SEBI’ chapter.'
+]
+
+# Open the PDF document for highlighting
+doc = fitz.open(pdf_path)
+
+# Approach: Try to find each phrase by exact match first, then partial match
+for page_num in range(doc.page_count):
+    page = doc[page_num]
+    page_text = page.get_text()
+
+    for phrase in highlighted_phrases:
+        # Attempt exact match first
+        exact_locations = page.search_for(phrase)
+        if exact_locations:
+            print(f"Exact match found for phrase on page {page_num + 1}: {phrase}")
+            for loc in exact_locations:
+                highlight = page.add_highlight_annot(loc)
+                highlight.update()
+        else:
+            # If exact match fails, attempt partial match
+            print(f"No exact match, trying partial matches for phrase on page {page_num + 1}: {phrase}")
+            parts = phrase.split()  # Split phrase into words or parts to search individually
+
+            for part in parts:
+                partial_locations = page.search_for(part)
+                if partial_locations:
+                    print(f"Partial match found for '{part}' on page {page_num + 1}")
+                    for loc in partial_locations:
+                        highlight = page.add_highlight_annot(loc)
+                        highlight.update()
+                else:
+                    print(f"No match found for '{part}' on page {page_num + 1}")
+
+# Save the modified PDF with highlights
+output_path = "highlighted_sample_phrases_attempted.pdf"
+doc.save(output_path)
+doc.close()
+print(f"Saved highlighted PDF to {output_path}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

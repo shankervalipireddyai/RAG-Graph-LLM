@@ -1,3 +1,90 @@
+pip install azure-ai-formrecognizer
+
+
+import os
+import json
+from azure.ai.formrecognizer import DocumentAnalysisClient
+from azure.core.credentials import AzureKeyCredential
+
+# Set up Azure Document Intelligence client
+endpoint = "https://<your-form-recognizer-endpoint>.cognitiveservices.azure.com/"
+api_key = "<your-api-key>"
+document_analysis_client = DocumentAnalysisClient(endpoint, AzureKeyCredential(api_key))
+
+def parse_and_chunk_document(file_path):
+    # Load PDF file
+    with open(file_path, "rb") as f:
+        poller = document_analysis_client.begin_analyze_document("prebuilt-layout", document=f)
+        result = poller.result()
+    
+    # Initialize a list to hold structured content
+    structured_content = []
+
+    # Iterate through pages and extract headers, sub-headers, and paragraphs
+    for page in result.pages:
+        section_data = {
+            "topic_name": None,       # Header or main section
+            "section_name": None,     # Sub-header or subsection
+            "section_description": [] # Paragraphs or sentences
+        }
+        
+        for line in page.lines:
+            text = line.content.strip()
+            
+            # Simple heuristics to identify headers and sections
+            if text.isupper():  # Assume all-uppercase as a main header
+                if section_data["topic_name"]:
+                    # Save previous section before starting a new one
+                    section_data["section_description"] = " ".join(section_data["section_description"])
+                    structured_content.append(section_data)
+                    section_data = {"topic_name": text, "section_name": None, "section_description": []}
+                else:
+                    section_data["topic_name"] = text
+            elif text.endswith(":"):  # Assume text ending with ':' is a sub-header
+                section_data["section_name"] = text
+            else:
+                # Treat as paragraph content
+                section_data["section_description"].append(text)
+
+        # Append the last section on each page
+        if section_data["topic_name"]:
+            section_data["section_description"] = " ".join(section_data["section_description"])
+            structured_content.append(section_data)
+
+    # Convert structured content to JSON format
+    json_output = json.dumps(structured_content, indent=4)
+    return json_output
+
+# Example usage
+pdf_file = r"C:\Users\shank\OneDrive\Desktop\RCM\RCM1\2024-10hsgml.pdf"
+
+print("Parsing PDF with Azure Document Intelligence and converting to JSON:")
+json_content = parse_and_chunk_document(pdf_file)
+print(json_content)
+
+# Optionally, save JSON output to a file
+with open("output_azure_document_intelligence.json", "w") as f:
+    f.write(json_content)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import fitz  # PyMuPDF
 import re
 

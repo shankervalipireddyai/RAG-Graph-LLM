@@ -1,4 +1,151 @@
 import fitz  # PyMuPDF
+import openpyxl
+from openpyxl.utils import get_column_letter
+
+def extract_content_with_headers(pdf_path):
+    """
+    Extract headers, subheaders, and paragraphs from a PDF.
+    Headers are identified based on font size and position.
+    """
+    content = []
+    
+    with fitz.open(pdf_path) as doc:
+        for page_num, page in enumerate(doc, start=1):
+            # Extract text with detailed formatting
+            blocks = page.get_text("dict")["blocks"]
+            
+            for block in blocks:
+                if "lines" not in block:
+                    continue
+                
+                for line in block["lines"]:
+                    for span in line["spans"]:
+                        text = span["text"].strip()
+                        font_size = span["size"]
+                        font_flags = span["flags"]
+                        bbox = span["bbox"]  # Bounding box: x0, y0, x1, y1
+                        
+                        if not text:  # Skip empty lines
+                            continue
+                        
+                        # Header/Subheader detection logic (based on font size/flags)
+                        if font_size > 14 and font_flags & 2:  # Larger size and bold
+                            content.append({
+                                "type": "header",
+                                "text": text,
+                                "page": page_num,
+                                "bbox": bbox,
+                                "font_size": font_size
+                            })
+                        elif font_size > 12:  # Subheader (slightly smaller than header)
+                            content.append({
+                                "type": "subheader",
+                                "text": text,
+                                "page": page_num,
+                                "bbox": bbox,
+                                "font_size": font_size
+                            })
+                        else:  # Treat as paragraph
+                            content.append({
+                                "type": "paragraph",
+                                "text": text,
+                                "page": page_num,
+                                "bbox": bbox,
+                                "font_size": font_size
+                            })
+    
+    return content
+
+
+def group_paragraphs_by_headers(content):
+    """
+    Group paragraphs under their corresponding headers and subheaders.
+    """
+    grouped_content = []
+    current_header = None
+    current_subheader = None
+    current_group = {"header": None, "subheader": None, "paragraphs": []}
+    
+    for item in content:
+        if item["type"] == "header":
+            # Save current group and start a new one
+            if current_group["paragraphs"]:
+                grouped_content.append(current_group)
+            current_header = item["text"]
+            current_subheader = None
+            current_group = {"header": current_header, "subheader": None, "paragraphs": []}
+        
+        elif item["type"] == "subheader":
+            current_subheader = item["text"]
+            current_group["subheader"] = current_subheader
+        
+        elif item["type"] == "paragraph":
+            current_group["paragraphs"].append(item["text"])
+    
+    # Append the last group
+    if current_group["paragraphs"]:
+        grouped_content.append(current_group)
+    
+    return grouped_content
+
+
+def write_to_excel(grouped_content, output_path):
+    """
+    Write grouped content to an Excel file.
+    Each row will include Header, Subheader, and Paragraph.
+    """
+    # Create a new workbook and worksheet
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Extracted Content"
+
+    # Write the headers for the Excel columns
+    ws.append(["Header", "Subheader", "Paragraph"])
+
+    # Fill in the data
+    for group in grouped_content:
+        header = group["header"]
+        subheader = group["subheader"]
+        for paragraph in group["paragraphs"]:
+            ws.append([header, subheader, paragraph])
+
+    # Adjust column widths
+    for col in ws.columns:
+        max_length = 0
+        col_letter = get_column_letter(col[0].column)  # Get the column letter
+        for cell in col:
+            try:
+                if cell.value:
+                    max_length = max(max_length, len(str(cell.value)))
+            except:
+                pass
+        ws.column_dimensions[col_letter].width = max_length + 2
+
+    # Save the workbook
+    wb.save(output_path)
+    print(f"Data written to {output_path}")
+
+
+# Example Usage
+pdf_path = "example.pdf"
+output_excel_path = "output.xlsx"
+
+# Step 1: Extract content
+content = extract_content_with_headers(pdf_path)
+
+# Step 2: Group paragraphs under headers and subheaders
+grouped_content = group_paragraphs_by_headers(content)
+
+# Step 3: Write grouped content to Excel
+write_to_excel(grouped_content, output_excel_path)
+
+
+
+
+
+
+
+import fitz  # PyMuPDF
 
 def extract_paragraphs_from_pdf(pdf_path):
     paragraphs = []

@@ -1,3 +1,33 @@
+import fitz  # PyMuPDF
+
+def extract_paragraphs_from_pdf(pdf_path):
+    paragraphs = []
+    with fitz.open(pdf_path) as doc:
+        for page in doc:
+            # Extract text blocks with positional data
+            blocks = page.get_text("blocks")
+            
+            for block in blocks:
+                x0, y0, x1, y1, text, _, _ = block
+                # Clean and normalize the text
+                clean_text = text.strip()
+                if clean_text:  # Ignore empty blocks
+                    paragraphs.append(clean_text)
+    return paragraphs
+
+# Usage
+pdf_file = "example.pdf"
+paragraphs = extract_paragraphs_from_pdf(pdf_file)
+
+# Display the paragraphs
+for i, para in enumerate(paragraphs, start=1):
+    print(f"Paragraph {i}:\n{para}\n")
+
+
+
+
+
+
 pip install azure-ai-formrecognizer
 
 
